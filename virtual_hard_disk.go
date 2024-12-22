@@ -193,3 +193,13 @@ func CreateVirtualHardDisk(path string, name string, sizeGiB int) (vhd *VirtualH
 	}
 	return
 }
+
+func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {
+	if !checkVirtualHardDiskExistsByPath(path) {
+		return false, errors.New("vhd not exists")
+	}
+	if err = os.Remove(path); err != nil {
+		return
+	}
+	return true, nil
+}
