@@ -204,6 +204,14 @@ func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {
 	return true, nil
 }
 
+func GetVirtualHardDiskMaxSize(path string) (maxSizeGiB uint64, err error) {
+	vhdSettingData, err := GetVirtualHardDiskSettingData(path)
+	if err != nil {
+		return
+	}
+	return vhdSettingData.Size / (1024 * 1024 * 1024), nil
+}
+
 type VirtualHardDiskSettingData struct {
 	Size        uint64
 	BlockSize   uint32
@@ -232,7 +240,9 @@ func GetVirtualHardDiskSettingData(path string) (*VirtualHardDiskSettingData, er
 	}
 	defer imms.Close()
 
-	inv := imms.Method("GetVirtualHardDiskSettingData").
+	methodName := "GetVirtualHardDiskSettingData"
+
+	inv := imms.Method(methodName).
 		In("Path", path).
 		Execute().
 		Out("Job", &job).
