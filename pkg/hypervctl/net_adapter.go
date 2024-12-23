@@ -10,7 +10,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/network/switchport"
 	na "github.com/microsoft/wmi/pkg/virtualization/network/virtualnetworkadapter"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
-	"github.com/rokukoo/hypervctl/wmiext"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
 // VirtualNetworkAdapter represents a virtual network adapter

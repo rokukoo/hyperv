@@ -7,7 +7,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/wmiext"
+	wmiext2 "github.com/rokukoo/hypervctl/pkg/wmiext"
 	"log"
 	"os"
 	"strings"
@@ -121,7 +121,7 @@ func hyperVVirtualMachine(virtualMachine *virtualsystem.VirtualMachine) (*HyperV
 }
 
 func (vm *HyperVVirtualMachine) VM() (*virtualsystem.VirtualMachine, error) {
-	wmiInstance, err := wmiext.GetWmiInstanceFromPath(wmiext.VirtualizationV2, vm.instancePath)
+	wmiInstance, err := wmiext2.GetWmiInstanceFromPath(wmiext2.VirtualizationV2, vm.instancePath)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +353,7 @@ func (vm *HyperVVirtualMachine) ModifySpec(options ...Option) (ok bool, err erro
 			return
 		}
 	}
-	mgmt, err := wmiext.NewLocalVirtualSystemManagementService()
+	mgmt, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return false, err
 	}
@@ -378,7 +378,7 @@ func (vm *HyperVVirtualMachine) ModifySpec(options ...Option) (ok bool, err erro
 
 // GetVirtualMachineByName 根据虚拟机名称获取虚拟机
 func GetVirtualMachineByName(vmName string) (*HyperVVirtualMachine, error) {
-	vm, err := wmiext.GetVirtualMachineByVMName(vmName)
+	vm, err := wmiext2.GetVirtualMachineByVMName(vmName)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +411,7 @@ func CreateVirtualMachine(name string, savePath string, cpuCoreCount int, memory
 
 // ListVirtualMachines 获取所有虚拟机
 func ListVirtualMachines() (vms []*HyperVVirtualMachine, err error) {
-	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +436,7 @@ func DeleteVirtualMachineByName(name string, del bool) (ok bool, err error) {
 		return false, err
 	}
 	virtualMachine := vm.VirtualMachine
-	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return false, err
 	}
@@ -475,14 +475,14 @@ func ModifyVirtualMachineSpec(name string, cpuCoreCount int, memorySize int) (ok
 	return vm.ModifySpec(options...)
 }
 
-func waitVMResult(res int32, service *wmiext.Service, job *wmiext.Instance, errorMsg string, translate func(int) error) error {
+func waitVMResult(res int32, service *wmiext2.Service, job *wmiext2.Instance, errorMsg string, translate func(int) error) error {
 	var err error
 
 	switch res {
 	case 0:
 		return nil
 	case 4096:
-		err = wmiext.WaitJob(service, job)
+		err = wmiext2.WaitJob(service, job)
 		defer job.Close()
 	default:
 		if translate != nil {

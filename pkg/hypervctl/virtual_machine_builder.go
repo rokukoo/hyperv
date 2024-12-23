@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/memory"
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
-	"github.com/rokukoo/hypervctl/wmiext"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
 type VirtualMachineBuilder struct {

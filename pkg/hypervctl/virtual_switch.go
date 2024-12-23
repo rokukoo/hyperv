@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/wmi/pkg/base/host"
 	"github.com/microsoft/wmi/pkg/virtualization/network/virtualswitch"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/wmiext"
+	wmiext2 "github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
 type VirtualSwitchType = int
@@ -65,10 +65,10 @@ func FindVirtualSwitchByName(name string) (*VirtualSwitch, error) {
 // CreatePrivateVirtualSwitch creates a private virtual switch
 func CreatePrivateVirtualSwitch(name string) (*VirtualSwitch, error) {
 	var (
-		vsms *wmiext.VirtualEthernetSwitchManagementService
+		vsms *wmiext2.VirtualEthernetSwitchManagementService
 		err  error
 	)
-	if vsms, err = wmiext.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
+	if vsms, err = wmiext2.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
 		return nil, err
 	}
 	setting, err := virtualswitch.GetVirtualEthernetSwitchSettingData(vsms.GetWmiHost(), "private")
@@ -91,10 +91,10 @@ func CreatePrivateVirtualSwitch(name string) (*VirtualSwitch, error) {
 
 func CreateInternalVirtualSwitch(name string) (*VirtualSwitch, error) {
 	var (
-		vsms *wmiext.VirtualEthernetSwitchManagementService
+		vsms *wmiext2.VirtualEthernetSwitchManagementService
 		err  error
 	)
-	if vsms, err = wmiext.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
+	if vsms, err = wmiext2.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
 		return nil, err
 	}
 	setting, err := virtualswitch.GetVirtualEthernetSwitchSettingData(vsms.GetWmiHost(), "internal")
@@ -117,11 +117,11 @@ func CreateInternalVirtualSwitch(name string) (*VirtualSwitch, error) {
 
 func CreateExternalVirtualSwitch(name, networkInterfaceName string, internalport bool) (*VirtualSwitch, error) {
 	var (
-		vsms *wmiext.VirtualEthernetSwitchManagementService
+		vsms *wmiext2.VirtualEthernetSwitchManagementService
 		err  error
 	)
 
-	if vsms, err = wmiext.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
+	if vsms, err = wmiext2.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
 		return nil, err
 	}
 	setting, err := virtualswitch.GetVirtualEthernetSwitchSettingData(vsms.GetWmiHost(), "external")
@@ -132,7 +132,7 @@ func CreateExternalVirtualSwitch(name, networkInterfaceName string, internalport
 		return nil, err
 	}
 	portName := uuid.NewString()
-	netAdapter, err := wmiext.FindNetAdapterByInterfaceDescription(networkInterfaceName)
+	netAdapter, err := wmiext2.FindNetAdapterByInterfaceDescription(networkInterfaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -179,10 +179,10 @@ func (vsw *VirtualSwitch) Create() error {
 // DeleteVirtualSwitchByName removes a virtual switch by name
 func DeleteVirtualSwitchByName(name string) (bool, error) {
 	var (
-		vsms *wmiext.VirtualEthernetSwitchManagementService
+		vsms *wmiext2.VirtualEthernetSwitchManagementService
 		err  error
 	)
-	if vsms, err = wmiext.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
+	if vsms, err = wmiext2.NewLocalVirtualEthernetSwitchManagementService(); err != nil {
 		return false, err
 	}
 	vsw, err := vsms.FindVirtualSwitchByName(name)

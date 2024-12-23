@@ -1,6 +1,8 @@
 package hypervctl
 
-import "github.com/rokukoo/hypervctl/wmiext"
+import (
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
+)
 
 const (
 	HyperVNamespace                = "root\\virtualization\\v2"

@@ -13,7 +13,7 @@ import (
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	v2 "github.com/microsoft/wmi/server2019/root/virtualization/v2"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/wmiext"
+	wmiext2 "github.com/rokukoo/hypervctl/pkg/wmiext"
 	"os"
 	"path/filepath"
 	"slices"
@@ -46,7 +46,7 @@ func (vhd *VirtualHardDisk) AttachTo(vm *HyperVVirtualMachine) (ok bool, err err
 }
 
 func (vhd *VirtualHardDisk) AttachToIDE(vm *HyperVVirtualMachine) (ok bool, err error) {
-	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (vhd *VirtualHardDisk) AttachToIDE(vm *HyperVVirtualMachine) (ok bool, err 
 }
 
 func (vhd *VirtualHardDisk) AttachToSCSI(vm *HyperVVirtualMachine) (ok bool, err error) {
-	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -113,7 +113,7 @@ func (vhd *VirtualHardDisk) Detach() (ok bool, err error) {
 		return false, errors.New("vhd not mounted yet")
 	}
 	virtualHardDisk, err := disk.NewVirtualHardDisk(vhdSetting)
-	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -158,7 +158,7 @@ func CreateVirtualHardDisk(path string, name string, sizeGiB int) (vhd *VirtualH
 	if checkVirtualHardDiskExistsByPath(path) {
 		return nil, errors.New("VirtualHardDisk exists")
 	}
-	mgmt, err := wmiext.NewLocalImageManagementService()
+	mgmt, err := wmiext2.NewLocalImageManagementService()
 	if err != nil {
 		return
 	}
@@ -222,9 +222,9 @@ type VirtualHardDiskSettingData struct {
 
 func GetVirtualHardDiskSettingData(path string) (*VirtualHardDiskSettingData, error) {
 	var (
-		service *wmiext.Service
+		service *wmiext2.Service
 		err     error
-		job     *wmiext.Instance
+		job     *wmiext2.Instance
 		ret     int32
 		results string
 	)

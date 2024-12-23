@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	na "github.com/microsoft/wmi/pkg/virtualization/network/virtualnetworkadapter"
-	"github.com/rokukoo/hypervctl/wmiext"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
 // AddNetworkAdapter adds a network adapter to the virtual machine

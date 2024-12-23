@@ -2,7 +2,7 @@ package hypervctl
 
 import (
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/wmiext"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
 var (
