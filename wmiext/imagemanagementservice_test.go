@@ -1,4 +1,4 @@
-package wmictl
+package wmiext
 
 import (
 	"testing"

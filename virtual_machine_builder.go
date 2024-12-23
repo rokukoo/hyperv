@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/memory"
 	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
-	"github.com/rokukoo/hypervctl/wmictl"
+	"github.com/rokukoo/hypervctl/wmiext"
 )
 
 type VirtualMachineBuilder struct {
@@ -92,7 +92,7 @@ func (builder *VirtualMachineBuilder) Create() (*HyperVVirtualMachine, error) {
 	var vm *HyperVVirtualMachine
 	var err error
 
-	vmms, err := wmictl.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return nil, err
 	}

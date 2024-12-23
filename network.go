@@ -5,7 +5,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/core/service"
 	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	na "github.com/microsoft/wmi/pkg/virtualization/network/virtualnetworkadapter"
-	"github.com/rokukoo/hypervctl/wmictl"
+	"github.com/rokukoo/hypervctl/wmiext"
 )
 
 // AddNetworkAdapter adds a network adapter to the virtual machine
@@ -18,8 +18,8 @@ func (vm *HyperVVirtualMachine) AddNetworkAdapter(name string, limit int, reserv
 	if err != nil {
 		return nil, err
 	}
-	//service, err := wmictl.GetVirtualSystemManagementService(virtualMachine.GetWmiHost())
-	service, err := wmictl.NewLocalVirtualSystemManagementService()
+	//service, err := wmiext.GetVirtualSystemManagementService(virtualMachine.GetWmiHost())
+	service, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return nil, err
 	}
@@ -81,14 +81,14 @@ func (vm *HyperVVirtualMachine) RemoveNetworkAdapter(name string) (bool, error) 
 		return false, err
 	}
 	// Get the virtual system management service
-	if vmms, err = wmictl.NewLocalVirtualSystemManagementService(); err != nil {
+	if vmms, err = wmiext.NewLocalVirtualSystemManagementService(); err != nil {
 		return false, err
 	}
 	// Get the network adapter by name
 	if adapter, err = virtualMachine.GetVirtualNetworkAdapterByName(name); err != nil {
 		return false, err
 	}
-	// If the adapter is not found, return an error
+	// If the adapter is not found, return an error.go
 	if adapter == nil {
 		return false, errors2.NotFound
 	}

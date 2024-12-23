@@ -10,7 +10,7 @@ import (
 	"github.com/microsoft/wmi/pkg/virtualization/network/switchport"
 	na "github.com/microsoft/wmi/pkg/virtualization/network/virtualnetworkadapter"
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
-	"github.com/rokukoo/hypervctl/wmictl"
+	"github.com/rokukoo/hypervctl/wmiext"
 )
 
 // VirtualNetworkAdapter represents a virtual network adapter
@@ -39,7 +39,7 @@ func (vna *VirtualNetworkAdapter) Connect(vsw *VirtualSwitch) (bool, error) {
 		name           string
 	)
 	// Get the virtual system management service
-	if vmms, err = wmictl.NewLocalVirtualSystemManagementService(); err != nil {
+	if vmms, err = wmiext.NewLocalVirtualSystemManagementService(); err != nil {
 		return false, err
 	}
 	// Get the hyper-v physical virtual machine
@@ -96,7 +96,7 @@ func (vna *VirtualNetworkAdapter) ModifyConfiguration(ipV4Address []string, subn
 	if err != nil {
 		return false, err
 	}
-	vmms, err := wmictl.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return false, err
 	}
@@ -152,7 +152,7 @@ func (vna *VirtualNetworkAdapter) SetBandwidth(limitMbps float64, reserveMbps fl
 	if limitMbps < 0 {
 		return errors.New("limitMbps must be greater than or equal to 0")
 	}
-	vsms, err := wmictl.GetVirtualSystemManagementService(vna.VirtualMachine.GetWmiHost())
+	vsms, err := wmiext.GetVirtualSystemManagementService(vna.VirtualMachine.GetWmiHost())
 	if err != nil {
 		return err
 	}

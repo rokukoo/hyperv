@@ -1,4 +1,4 @@
-package wmictl
+package wmiext
 
 import (
 	"github.com/microsoft/wmi/pkg/base/host"

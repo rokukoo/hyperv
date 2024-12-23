@@ -46,3 +46,13 @@ func TestDeleteVirtualHardDiskByPath(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.Equal(t, false, checkVirtualHardDiskExistsByPath(testVirtualHardDiskPath))
 }
+
+func TestGetVirtualHardDiskSettingData(t *testing.T) {
+	vhdxPath := `D:\\Hyper-V\\Virtual Hard Disks\\新建虚拟硬盘.vhdx`
+	vhdSettingData, err := GetVirtualHardDiskSettingData(vhdxPath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("vhdSettingData: %v", vhdSettingData)
+}

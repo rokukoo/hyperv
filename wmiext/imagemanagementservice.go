@@ -1,4 +1,4 @@
-package wmictl
+package wmiext
 
 import (
 	"encoding/xml"
@@ -73,12 +73,6 @@ func GetVirtualHardDiskState(path string) (virtualHardDiskState *VirtualHardDisk
 		// Try to get the Out Params
 		state := result.OutMethodParams["State"]
 		if state != nil {
-			//inst, err1 := instance.GetWmiInstanceFromPath(ims.GetWmiHost(), string(constant.Virtualization), state.Value.(string))
-			//if err1 != nil {
-			//	err = err1
-			//	return nil, err
-			//}
-			//virtualHardDiskState, err = v2.NewMsvm_VirtualHardDiskStateEx1(inst)
 			ins := &virtualHardDiskStateInstance{}
 			err = xml.Unmarshal([]byte(state.Value.(string)), ins)
 			if err != nil {

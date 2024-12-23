@@ -13,7 +13,7 @@ import (
 	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	v2 "github.com/microsoft/wmi/server2019/root/virtualization/v2"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/wmictl"
+	"github.com/rokukoo/hypervctl/wmiext"
 	"os"
 	"path/filepath"
 	"slices"
@@ -46,7 +46,7 @@ func (vhd *VirtualHardDisk) AttachTo(vm *HyperVVirtualMachine) (ok bool, err err
 }
 
 func (vhd *VirtualHardDisk) AttachToIDE(vm *HyperVVirtualMachine) (ok bool, err error) {
-	vmms, err := wmictl.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (vhd *VirtualHardDisk) AttachToIDE(vm *HyperVVirtualMachine) (ok bool, err 
 }
 
 func (vhd *VirtualHardDisk) AttachToSCSI(vm *HyperVVirtualMachine) (ok bool, err error) {
-	vmms, err := wmictl.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -113,7 +113,7 @@ func (vhd *VirtualHardDisk) Detach() (ok bool, err error) {
 		return false, errors.New("vhd not mounted yet")
 	}
 	virtualHardDisk, err := disk.NewVirtualHardDisk(vhdSetting)
-	vmms, err := wmictl.NewLocalVirtualSystemManagementService()
+	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
 	if err != nil {
 		return
 	}
@@ -158,7 +158,7 @@ func CreateVirtualHardDisk(path string, name string, sizeGiB int) (vhd *VirtualH
 	if checkVirtualHardDiskExistsByPath(path) {
 		return nil, errors.New("VirtualHardDisk exists")
 	}
-	mgmt, err := wmictl.NewLocalImageManagementService()
+	mgmt, err := wmiext.NewLocalImageManagementService()
 	if err != nil {
 		return
 	}
@@ -202,4 +202,66 @@ func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {
 		return
 	}
 	return true, nil
+}
+
+type VirtualHardDiskSettingData struct {
+	Size        uint64
+	BlockSize   uint32
+	LSectorSize uint32
+	PSectorSize uint32
+	Format      uint16
+}
+
+func GetVirtualHardDiskSettingData(path string) (*VirtualHardDiskSettingData, error) {
+	var (
+		service *wmiext.Service
+		err     error
+		job     *wmiext.Instance
+		ret     int32
+		results string
+	)
+
+	if service, err = NewLocalHyperVService(); err != nil {
+		return nil, err
+	}
+	defer service.Close()
+
+	imms, err := service.GetSingletonInstance("Msvm_ImageManagementService")
+	if err != nil {
+		return nil, err
+	}
+	defer imms.Close()
+
+	inv := imms.Method("GetVirtualHardDiskSettingData").
+		In("Path", path).
+		Execute().
+		Out("Job", &job).
+		Out("ReturnValue", &ret)
+
+	if err := inv.Error(); err != nil {
+		return nil, fmt.Errorf("failed to get setting data for disk %s: %q", path, err)
+	}
+
+	if err := waitVMResult(ret, service, job, "failure waiting on result from disk settings", nil); err != nil {
+		return nil, err
+	}
+
+	err = inv.Out("SettingData", &results).End()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve setting object payload for disk: %q", err)
+	}
+
+	size, blockSize, sectorSize, pSectorSize, format, err := disk.GetVirtualHardDiskSettingDataFromXml(host.NewWmiLocalHost(), results)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &VirtualHardDiskSettingData{
+		Size:        size,
+		BlockSize:   blockSize,
+		LSectorSize: sectorSize,
+		PSectorSize: pSectorSize,
+		Format:      format,
+	}, nil
 }

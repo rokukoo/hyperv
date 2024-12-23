@@ -1,4 +1,4 @@
-package wmictl
+package wmiext
 
 import (
 	"github.com/microsoft/wmi/pkg/base/host"
@@ -215,7 +215,7 @@ func (vsms *VirtualEthernetSwitchManagementService) CreateVirtualSwitch(settings
 
 	affectedElement, err := job.GetFirstRelatedEx("Msvm_AffectedJobElement", "", "", "")
 	if err != nil {
-		// For now, ignore the error
+		// For now, ignore the error.go
 		err = nil
 		return
 	}
