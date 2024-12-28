@@ -34,10 +34,14 @@ func (vhd *VirtualHardDisk) Resize(newSizeGiB int) (ok bool, err error) {
 	if err != nil {
 		return false, err
 	}
+	if newSizeGiB <= int(vhd.UsedSizeGB) {
+		return false, errors.New("new size must be greater than used size")
+	}
 	err = mgmt.ResizeDisk(vhd.Path, uint64(newSizeGiB)*1024*1024*1024)
 	if err != nil {
 		return false, err
 	}
+	vhd.TotalSizeGB = uint64(newSizeGiB)
 	return true, nil
 }
 
@@ -131,18 +135,26 @@ func GetVirtualHardDiskByPath(path string) (*VirtualHardDisk, error) {
 	// 根据路径读取文件名
 	fileName := filepath.Base(path)
 	// 获取文件信息
-	fileInfo, err := os.Stat(path)
+	//fileInfo, err := os.Stat(path)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//// 获取文件大小 (以 GB 为单位)
+	//usedSizeGB := uint64(fileInfo.Size()) / (1024 * 1024 * 1024)
+
+	vhdSettingData, err := GetVirtualHardDiskSettingData(path)
 	if err != nil {
 		return nil, err
 	}
-	// 获取文件大小 (以 GB 为单位)
-	usedSizeGB := uint64(fileInfo.Size()) / (1024 * 1024 * 1024)
 
-	// TODO: 通过 WMI 获取 VirtualHardDisk 信息, 拿到 TotalSizeGB
+	usedSizeGB := uint64(vhdSettingData.PSectorSize) / 1024 / 1024
+	maxSizeGB := uint64(vhdSettingData.Size) / (1024 * 1024 * 1024)
 
 	return &VirtualHardDisk{
-		Name:       fileName,
-		UsedSizeGB: usedSizeGB,
+		Name:        fileName,
+		Path:        path,
+		UsedSizeGB:  usedSizeGB,
+		TotalSizeGB: maxSizeGB,
 	}, nil
 }
 
@@ -185,13 +197,10 @@ func CreateVirtualHardDisk(path string, name string, sizeGiB int) (vhd *VirtualH
 		return
 	}
 	err = mgmt.CreateDisk(vhdSettingData)
-	vhd = &VirtualHardDisk{
-		Name:        name,
-		Path:        path,
-		UsedSizeGB:  0,
-		TotalSizeGB: uint64(sizeGiB),
+	if err != nil {
+		return
 	}
-	return
+	return GetVirtualHardDiskByPath(path)
 }
 
 func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {

@@ -17,8 +17,32 @@ func TestVirtualHardDisk(t *testing.T) {
 
 	// TestCreateVirtualHardDisk
 	t.Run("TestCreateVirtualHardDisk", TestCreateVirtualHardDisk)
+	// TestVirtualHardDisk_Resize
+	t.Run("TestVirtualHardDisk_Resize", TestVirtualHardDisk_Resize)
 	// TestDeleteVirtualHardDiskByPath
 	t.Run("TestDeleteVirtualHardDiskByPath", TestDeleteVirtualHardDiskByPath)
+}
+
+func TestVirtualHardDisk_Resize(t *testing.T) {
+	t.Log("TestVirtualHardDisk_Resize")
+
+	if testVirtualHardDisk, err = GetVirtualHardDiskByPath(testVirtualHardDiskPath); err != nil {
+		t.Fatalf("GetVHD failed: %v", err)
+	}
+	assert.NotNil(t, testVirtualHardDisk)
+
+	resizeGiB := 15
+	if ok, err = testVirtualHardDisk.Resize(resizeGiB); err != nil {
+		t.Fatalf("ResizeVHD failed: %v", err)
+	}
+	assert.Equal(t, true, ok)
+
+	findVhd, err := GetVirtualHardDiskByPath(testVirtualHardDiskPath)
+	if err != nil {
+		t.Fatalf("GetVHD failed: %v", err)
+	}
+	assert.NotNil(t, findVhd)
+	assert.ObjectsAreEqualValues(findVhd, testVirtualHardDisk)
 }
 
 func TestCreateVirtualHardDisk(t *testing.T) {
@@ -30,8 +54,13 @@ func TestCreateVirtualHardDisk(t *testing.T) {
 		t.Logf("VHD created: %v", testVirtualHardDisk)
 	}
 
-	assert.NotNil(t, testVirtualHardDiskPath)
-	assert.Equal(t, true, checkVirtualHardDiskExistsByPath(testVirtualHardDiskPath))
+	findVhd, err := GetVirtualHardDiskByPath(testVirtualHardDiskPath)
+	if err != nil {
+		t.Fatalf("GetVHD failed: %v", err)
+	}
+
+	assert.NotNil(t, findVhd)
+	assert.ObjectsAreEqualValues(findVhd, testVirtualHardDisk)
 }
 
 func TestDeleteVirtualHardDiskByPath(t *testing.T) {

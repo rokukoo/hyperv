@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	HyperVNamespace                = "root\\virtualization\\v2"
+	HyperVNamespace                = `root\virtualization\v2`
 	VirtualSystemManagementService = "Msvm_VirtualSystemManagementService"
 	MsvmComputerSystem             = "Msvm_ComputerSystem"
 )
