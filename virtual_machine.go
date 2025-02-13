@@ -1,315 +1,120 @@
 package hypervctl
 
 import (
-	"fmt"
-	"github.com/duke-git/lancet/v2/slice"
-	"github.com/microsoft/wmi/pkg/virtualization/core/memory"
-	"github.com/microsoft/wmi/pkg/virtualization/core/processor"
-	"github.com/microsoft/wmi/pkg/virtualization/core/virtualsystem"
 	"github.com/pkg/errors"
-	wmiext2 "github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/processor"
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"log"
 	"os"
 	"strings"
 )
 
-type IVirtualMachine interface {
-	Start() (ok bool, err error)
-	Stop(force bool) (ok bool, err error)
-	Reboot(force bool) (ok bool, err error)
-	ForceStop() (ok bool, err error)
-	ForceReboot() (ok bool, err error)
-	Suspend() (ok bool, err error)
-	Resume() (ok bool, err error)
-	Create() (bool, error)
-}
+type VirtualMachineState = virtual_system.ComputerSystemState
+
+const (
+	StateRunning VirtualMachineState = virtual_system.Running
+	StateStopped VirtualMachineState = virtual_system.Off
+	StateSuspend VirtualMachineState = virtual_system.Saved
+)
 
 // https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/msvm-computersystem
-type HyperVVirtualMachine struct {
-	instancePath string
-	Uuid         string   `json:"uuid"`
-	Name         string   `json:"name"`
-	Description  *string  `json:"description"`
-	Status       VMStatus `json:"status"`
-	CpuCoreCount int      `json:"cpu_core_count"`
-	MemorySize   int      `json:"memory_size"`
-	SavePath     string   `json:"save_path"`
-	*virtualsystem.VirtualMachine
+type VirtualMachine struct {
+	Name         string  `json:"name"`
+	Description  *string `json:"description"`
+	SavePath     string  `json:"save_path"`
+	CpuCoreCount int     `json:"cpu_core_count"`
+	MemorySizeMB int     `json:"memory_size"`
+	*virtual_system.ComputerSystem
 }
 
-func vmStatus(vm *virtualsystem.VirtualMachine) (VMStatus, error) {
-	state, err := vm.State()
-	if err != nil {
-		return VMStatusUnknown, err
-	}
-	// https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/requeststatechange-msvm-computersystem
-	if state == virtualsystem.Unknown {
-		return VMStatusUnknown, nil
-	} else if state == virtualsystem.Starting {
-		return VMStatusStarting, nil
-	} else if state == virtualsystem.Running {
-		return VMStatusRunning, nil
-	} else if state == virtualsystem.Off {
-		return VMStatusStopped, nil
-	} else if state == virtualsystem.Stopping {
-		return VMStatusStopping, nil
-	} else if state == virtualsystem.Saving {
-		return VMStatusSuspending, nil
-	} else if state == virtualsystem.Saved {
-		return VMStatusSuspended, nil
-	}
-	return VMStatusUnknown, nil
-}
+// State 获取虚拟机实时状态
+func (vm *VirtualMachine) State() VirtualMachineState {
+	var err error
+	var state VirtualMachineState
 
-func (vm *HyperVVirtualMachine) update(virtualMachine *virtualsystem.VirtualMachine) (err error) {
-	var (
-		systemSettingData    *virtualsystem.VirtualSystemSettingData
-		processorSettingData *processor.ProcessorSettingData
-		cpuCoreCount         uint64
-		memorySettingData    *memory.MemorySettingData
-		memorySize           uint64
-	)
-	// 1. 更新虚拟机状态
-	if vm.Status, err = vmStatus(virtualMachine); err != nil {
-		return
+	if state, err = vm.GetState(); err != nil {
+		log.Fatalf("failed to get vm state: %v", err)
 	}
-	// 2. 更新虚拟机配置信息
-	if systemSettingData, err = virtualMachine.GetVirtualSystemSettingData(); err != nil {
-		return
-	}
-	// 2.1 更新虚拟机保存路径
-	if vm.SavePath, err = systemSettingData.GetPropertyConfigurationDataRoot(); err != nil {
-		return
-	}
-	// 2.2 更新虚拟机描述信息
-	notes, err := systemSettingData.GetPropertyNotes()
-	if err != nil {
-		return
-	}
-	description := slice.Join(notes, ",")
-	vm.Description = &description
-	// 3. 更新虚拟机 CPU 核心数
-	if processorSettingData, err = virtualMachine.GetProcessor(); err != nil {
-		return
-	}
-	if cpuCoreCount, err = processorSettingData.GetCPUCount(); err != nil {
-		return
-	}
-	vm.CpuCoreCount = int(cpuCoreCount)
-	// 4. 更新虚拟机内存大小
-	if memorySettingData, err = virtualMachine.GetMemory(); err != nil {
-		return
-	}
-	if memorySize, err = memorySettingData.GetSizeMB(); err != nil {
-		return
-	}
-	vm.MemorySize = int(memorySize)
-	// 5. 更新虚拟机实例
-	vm.VirtualMachine = virtualMachine
-	vm.Uuid = virtualMachine.ID()
-	vm.Name = virtualMachine.Name()
-	vm.instancePath = virtualMachine.InstancePath()
-	return
-}
 
-func hyperVVirtualMachine(virtualMachine *virtualsystem.VirtualMachine) (*HyperVVirtualMachine, error) {
-	var vm HyperVVirtualMachine
-	if err := vm.update(virtualMachine); err != nil {
-		return nil, err
-	}
-	return &vm, nil
-}
-
-func (vm *HyperVVirtualMachine) VM() (*virtualsystem.VirtualMachine, error) {
-	wmiInstance, err := wmiext2.GetWmiInstanceFromPath(wmiext2.VirtualizationV2, vm.instancePath)
-	if err != nil {
-		return nil, err
-	}
-	virtualMachine, err := virtualsystem.NewVirtualMachine(wmiInstance)
-	if err != nil {
-		return nil, err
-	}
-	if err = vm.update(virtualMachine); err != nil {
-		return nil, err
-	}
-	return virtualMachine, nil
-}
-
-func (vm *HyperVVirtualMachine) Start() (bool, error) {
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	// 如果虚拟机正在启动, 则返回启动失败, 并返回错误: 虚拟机正在启动
-	if vm.Status == VMStatusStarting {
-		return false, errors.New("vm is starting")
-	}
-	// 如果虚拟机已经启动, 则返回启动成功, 并返回错误: 虚拟机已经启动
-	if vm.Status == VMStatusRunning {
-		return true, ErrVmAlreadyRunning
-	}
-	// 如果虚拟机正在关闭, 则返回启动失败, 并返回错误: 虚拟机正在关闭
-	if vm.Status == VMStatusStopping {
-		return false, errors.New("vm is stopping")
-	}
-	if err = virtualMachine.Start(); err != nil {
-		return false, err
-	}
-	vm.Status = VMStatusRunning
-	return true, nil
-}
-
-func (vm *HyperVVirtualMachine) Stop(force bool) (bool, error) {
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	// 如果虚拟机已经停止, 则返回关闭成功, 并返回错误: 虚拟机已经停止
-	if vm.Status == VMStatusStopped {
-		return true, ErrVmAlreadyStopped
-	}
-	// 如果虚拟机正在启动, 则返回关闭失败, 并返回错误: 虚拟机正在启动
-	if !force && vm.Status == VMStatusStarting {
-		return false, errors.New("vm is starting")
-	}
-	// 如果虚拟机正在关闭, 则返回关闭失败, 并返回错误: 虚拟机正在关闭
-	if !force && vm.Status == VMStatusStopping {
-		return false, errors.New("vm is stopping")
-	}
-	if err = virtualMachine.Stop(force); err != nil {
-		return false, err
-	}
-	vm.Status = VMStatusStopped
-	return true, nil
-}
-
-func (vm *HyperVVirtualMachine) Reboot(force bool) (bool, error) {
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	// 如果虚拟机正在启动, 则返回重启失败, 并返回错误: 虚拟机正在启动
-	if vm.Status == VMStatusStarting {
-		return false, errors.New("vm is starting")
-	}
-	// 如果虚拟机正在关闭, 则返回重启失败, 并返回错误: 虚拟机正在关闭
-	if vm.Status == VMStatusStopping {
-		return false, errors.New("vm is stopping")
-	}
-	vm.Status = VMStatusRebooting
-	if err = virtualMachine.Stop(force); err != nil {
-		return false, err
-	}
-	vm.Status = VMStatusStopped
-	vm.Status = VMStatusStarting
-	if err = virtualMachine.Start(); err != nil {
-		return false, err
-	}
-	vm.Status = VMStatusRunning
-	return true, nil
-}
-
-func (vm *HyperVVirtualMachine) ForceStop() (bool, error) {
-	return vm.Stop(true)
-}
-
-func (vm *HyperVVirtualMachine) ForceReboot() (bool, error) {
-	return vm.Reboot(true)
-}
-
-func (vm *HyperVVirtualMachine) Save() (bool, error) {
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	// 如果虚拟机已经保存, 则返回保存成功, 并返回错误: 虚拟机已经保存
-	//if vm.Status == VMStatusSaved {
-	//	return true, ErrVmAlreadySaved
-	//}
-	if vm.Status == VMStatusSuspended {
-		return true, ErrVmAlreadySaved
-	}
-	// 如果虚拟机不在运行, 则返回保存失败, 并返回错误: 虚拟机不在运行
-	if vm.Status != VMStatusRunning {
-		return false, errors.New("vm is not running")
-	}
-	if err = virtualMachine.Save(); err != nil {
-		return false, err
-	}
-	vm.Status = VMStatusSuspended
-	return true, nil
+	return state
 }
 
 // Suspend 挂起虚拟机
 // 由于 Hyper-V 平台原生挂起功能并非真正意义上的挂起, 而是保存虚拟机的状态, 因此这里的挂起操作实际上是保存虚拟机的状态
 // 保存虚拟机的状态后, 可以通过 Resume 恢复虚拟机的运行
-func (vm *HyperVVirtualMachine) Suspend() (bool, error) {
+func (vm *VirtualMachine) Suspend() error {
 	return vm.Save()
 }
 
-func (vm *HyperVVirtualMachine) Resume() (bool, error) {
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	// 如果虚拟机已经运行, 则返回恢复成功, 并返回错误: 虚拟机已经运行
-	if vm.Status == VMStatusRunning {
-		return true, ErrVmAlreadyRunning
-	}
-	// 如果虚拟机不在挂起状态, 则返回恢复失败, 并返回错误: 虚拟机不在挂起状态
-	if vm.Status != VMStatusSuspended && vm.Status != VMStatusSaved {
-		return false, errors.New("vm is not suspended")
+func (vm *VirtualMachine) update(cs *virtual_system.ComputerSystem) error {
+	var err error
+	var virtualSystemSettingData *virtual_system.VirtualSystemSettingData
+
+	vm.ComputerSystem = cs
+
+	if virtualSystemSettingData, err = vm.GetVirtualSystemSettingData(); err != nil {
+		return err
 	}
 
-	//if err = virtualMachine.Resume(); err != nil {
-	//	return true, err
-	//}
-	if err = virtualMachine.Start(); err != nil {
-		return true, err
-	}
+	vm.Name = cs.ElementName
+	description := strings.Join(virtualSystemSettingData.Notes, ",")
+	vm.Description = &description
+	vm.SavePath = virtualSystemSettingData.ConfigurationDataRoot
 
-	vm.Status = VMStatusRunning
-	return true, nil
+	vm.CpuCoreCount = int(vm.MustGetProcessorSettingData().VirtualQuantity)
+	vm.MemorySizeMB = int(vm.MustGetMemorySettingData().VirtualQuantity)
+
+	return nil
 }
 
-func (vm *HyperVVirtualMachine) Create() (bool, error) {
+func NewVirtualMachine(cs *virtual_system.ComputerSystem) (*VirtualMachine, error) {
 	var err error
+	vm := &VirtualMachine{}
+	if err = vm.update(cs); err != nil {
+		return nil, err
+	}
+	return vm, nil
+}
 
-	builder, err := NewVirtualMachineBuilder()
-	if err != nil {
-		return false, err
-	}
-	if _, err := builder.SetConfigurationDataRoot(vm.SavePath); err != nil {
-		return false, err
-	}
-	if _, err := builder.SetName(vm.Name); err != nil {
-		return false, err
-	}
-	if _, err := builder.SetCpuCoreCount(uint64(vm.CpuCoreCount)); err != nil {
-		return false, err
-	}
-	if _, err := builder.SetMemorySize(uint64(vm.MemorySize)); err != nil {
-		return false, err
-	}
-	if _, err := builder.SetEnableDynamicMemory(false); err != nil {
-		return false, err
+func (vm *VirtualMachine) Create() (err error) {
+	var buildVM *VirtualMachine
+	var builder *VirtualMachineBuilder
+
+	if builder, err = NewVirtualMachineBuilder(); err != nil {
+		return err
 	}
 
-	vm.Status = VMStatusCreating
-	virtualMachine, err := builder.Create()
-	if err != nil {
-		if err := errors.Unwrap(err); err != nil && strings.Contains(err.Error(), "ErrorCode[32769]") {
-			// 创建失败, 当前目录下已存在同名的虚拟机
-			return false, ErrVmAlreadyExists
+	builder.PrepareSystemSettings(vm.Name, func(systemSettingsData *virtual_system.VirtualSystemSettingData) {
+		systemSettingsData.ConfigurationDataRoot = vm.SavePath
+		if vm.Description != nil {
+			systemSettingsData.Notes = []string{*vm.Description}
 		}
-		return false, err
+	})
+
+	builder.PrepareProcessorSettings(func(processorSettings *processor.ProcessorSettingData) {
+		processorSettings.VirtualQuantity = uint64(vm.CpuCoreCount)
+	})
+
+	builder.PrepareMemorySettings(func(memorySettings *memory.MemorySettingsData) {
+		memorySettings.VirtualQuantity = uint64(vm.MemorySizeMB)
+		memorySettings.DynamicMemoryEnabled = false
+	})
+
+	if buildVM, err = builder.Build(); err != nil {
+		if errors.Unwrap(err).(*wmiext.JobError).ErrorCode == 32769 {
+			// 创建失败, 当前目录下已存在同名的虚拟机
+			return VirtualMachineAlreadyExists
+		}
+		return err
 	}
-	if err = vm.update(virtualMachine.VirtualMachine); err != nil {
-		return false, err
+
+	if err = vm.update(buildVM.ComputerSystem); err != nil {
+		return err
 	}
-	vm.Status = VMStatusStopped
-	log.Printf("vm created: %v, %v\n", vm, virtualMachine)
-	return true, err
+
+	return err
 }
 
 // ModifySpecOptions 修改虚拟机规格选项
@@ -339,89 +144,149 @@ func WithStop(confirmStop bool) Option {
 	}
 }
 
-func (vm *HyperVVirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
+// ModifySpec 修改虚拟机规格
+func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
+	var originalState = vm.State()
 	opts := new(ModifySpecOptions)
 	for _, option := range options {
 		option(opts)
 	}
-	virtualMachine, err := vm.VM()
-	if err != nil {
-		return false, err
-	}
-	if opts.confirmStop && vm.Status != VMStatusStopped {
-		if ok, err = vm.ForceStop(); err != nil {
+	if opts.confirmStop && vm.State() != StateStopped {
+		if err = vm.ForceStop(); err != nil {
 			return
 		}
 	}
-	mgmt, err := wmiext2.NewLocalVirtualSystemManagementService()
+	vmms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return false, err
 	}
 	// 修改 CPU 核心数
 	if opts.cpuCoreCount > 0 {
 		// HyperV 要求如果虚拟机未关闭, 则不允许修改 CPU 核心数
-		if vm.Status != VMStatusStopped {
+		if vm.State() != StateStopped {
 			return false, errors.New("vm must be stopped before modifying spec")
 		}
-		if err = mgmt.SetProcessorCount(virtualMachine, uint64(opts.cpuCoreCount)); err != nil {
+
+		processorSettingData := vm.MustGetProcessorSettingData()
+		processorSettingData.VirtualQuantity = uint64(opts.cpuCoreCount)
+
+		if err = processorSettingData.Put("VirtualQuantity", processorSettingData.VirtualQuantity); err != nil {
 			return false, err
 		}
+
+		if err = vmms.ModifyProcessorSettings(processorSettingData); err != nil {
+			return false, err
+		}
+
+		vm.CpuCoreCount = opts.cpuCoreCount
 	}
 	if opts.memorySizeMB > 0 {
 		// HyperV 允许虚拟机运行状态下, 修改内存大小
-		if err = mgmt.SetMemoryMB(virtualMachine, uint64(opts.memorySizeMB)); err != nil {
+		memorySettingData := vm.MustGetMemorySettingData()
+
+		memorySettingData.VirtualQuantity = uint64(opts.memorySizeMB)
+
+		if err = memorySettingData.Put("VirtualQuantity", memorySettingData.VirtualQuantity); err != nil {
+			return false, err
+		}
+
+		if err = vmms.ModifyMemorySettings(memorySettingData); err != nil {
+			if errors.Unwrap(err).(*wmiext.JobError).ErrorCode == 32768 {
+				// Error code 32768: The operation cannot be performed while the virtual machine is in its current state.
+				// Maybe the virtual machine does not support resizing memory dynamically (with not stop), try to stop the virtual machine and try again
+				if err = vm.ForceStop(); err != nil {
+					return false, err
+				}
+				if err = vmms.ModifyMemorySettings(memorySettingData); err != nil {
+					return false, err
+				}
+			} else {
+				return false, err
+			}
+		}
+
+		vm.MemorySizeMB = opts.memorySizeMB
+	}
+
+	if vm.State() != originalState {
+		if err = vm.ChangeState(originalState); err != nil {
 			return false, err
 		}
 	}
+
 	return true, nil
 }
 
-// GetVirtualMachineByName 根据虚拟机名称获取虚拟机
-func GetVirtualMachineByName(vmName string) (*HyperVVirtualMachine, error) {
-	vm, err := wmiext2.GetVirtualMachineByVMName(vmName)
+// FindVirtualMachineByName 根据虚拟机名称获取虚拟机
+func FindVirtualMachineByName(vmName string) ([]*VirtualMachine, error) {
+	service, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return nil, err
 	}
-	virtualMachine, err := hyperVVirtualMachine(vm)
+	vms, err := service.FindComputerSystemsByName(vmName)
 	if err != nil {
+		return nil, err
+	}
+	var virtualMachines []*VirtualMachine
+	for _, vm := range vms {
+		virtualMachine, err := NewVirtualMachine(vm)
+		if err != nil {
+			return nil, err
+		}
+		virtualMachines = append(virtualMachines, virtualMachine)
+	}
+	return virtualMachines, nil
+}
+
+// FirstVirtualMachineByName 根据虚拟机名称获取第一个虚拟机
+func FirstVirtualMachineByName(vmName string) (*VirtualMachine, error) {
+	vms, err := FindVirtualMachineByName(vmName)
+	if err != nil {
+		return nil, err
+	}
+	if len(vms) == 0 {
+		return nil, wmiext.NotFound
+	}
+	return vms[0], nil
+}
+
+func MustFirstVirtualMachineByName(vmName string) *VirtualMachine {
+	vm, err := FirstVirtualMachineByName(vmName)
+	if err != nil {
+		log.Fatalf("failed to find virtual machine: %v", err)
+	}
+	return vm
+}
+
+// CreateVirtualMachine 创建虚拟机
+func CreateVirtualMachine(name string, savePath string, cpuCoreCount int, memorySize int) (*VirtualMachine, error) {
+	var err error
+	virtualMachine := &VirtualMachine{
+		Name:         name,
+		SavePath:     savePath,
+		CpuCoreCount: cpuCoreCount,
+		MemorySizeMB: memorySize,
+	}
+	if err = virtualMachine.Create(); err != nil {
 		return nil, err
 	}
 	return virtualMachine, nil
 }
 
-// CreateVirtualMachine 创建虚拟机
-func CreateVirtualMachine(name string, savePath string, cpuCoreCount int, memorySize int) (*HyperVVirtualMachine, error) {
-	hyperVVirtualMachine := &HyperVVirtualMachine{
-		Name:         name,
-		Status:       VMStatusCreating,
-		SavePath:     savePath,
-		CpuCoreCount: cpuCoreCount,
-		MemorySize:   memorySize,
-	}
-	ok, err := hyperVVirtualMachine.Create()
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, errors.New("create virtual machine failed")
-	}
-	hyperVVirtualMachine.Status = VMStatusStopped
-	return hyperVVirtualMachine, nil
-}
-
 // ListVirtualMachines 获取所有虚拟机
-func ListVirtualMachines() (vms []*HyperVVirtualMachine, err error) {
-	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
+func ListVirtualMachines() (vms []*VirtualMachine, err error) {
+	var vsms *virtual_system.VirtualSystemManagementService
+	var vm *VirtualMachine
+	vsms, err = virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return nil, err
 	}
-	virtualMachines, err := vmms.GetVirtualMachines()
+	computerSystems, err := vsms.ListComputerSystems()
 	if err != nil {
 		return nil, err
 	}
-	for _, virtualMachine := range virtualMachines {
-		vm, err := hyperVVirtualMachine(virtualMachine)
-		if err != nil {
+	for _, cs := range computerSystems {
+		if vm, err = NewVirtualMachine(cs); err != nil {
 			return nil, err
 		}
 		vms = append(vms, vm)
@@ -429,38 +294,40 @@ func ListVirtualMachines() (vms []*HyperVVirtualMachine, err error) {
 	return
 }
 
-// DeleteVirtualMachineByName 根据名称删除虚拟机
-func DeleteVirtualMachineByName(name string, del bool) (ok bool, err error) {
-	vm, err := GetVirtualMachineByName(name)
+// DestroyVirtualMachineByName 根据名称删除虚拟机
+func DestroyVirtualMachineByName(name string, del bool) (ok bool, err error) {
+	vmms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return false, err
 	}
-	virtualMachine := vm.VirtualMachine
-	vmms, err := wmiext2.NewLocalVirtualSystemManagementService()
+	vm, err := FirstVirtualMachineByName(name)
 	if err != nil {
 		return false, err
 	}
-	//defer vmms.Close()
-	if vm.Status != VMStatusStopped {
+	if vm.State() != StateStopped {
 		return false, errors.New("vm must be stopped before deleting")
 	}
-	err = vmms.DeleteVirtualMachine(virtualMachine)
-	if err != nil {
+
+	if err = vmms.DestroySystem(vm.ComputerSystem); err != nil {
 		return false, err
 	}
 	if del {
 		// RemoveAll 可以删除非空文件夹
-		err = os.RemoveAll(vm.SavePath)
-		if err != nil {
+		if err = os.RemoveAll(vm.SavePath); err != nil {
 			return false, err
 		}
 	}
 	return true, nil
 }
 
-// ModifyVirtualMachineSpec 根据虚拟机名称修改虚拟机规格
-func ModifyVirtualMachineSpec(name string, cpuCoreCount int, memorySize int) (ok bool, err error) {
-	vm, err := GetVirtualMachineByName(name)
+// DeleteVirtualMachineByName 根据名称删除虚拟机
+func DeleteVirtualMachineByName(name string) (ok bool, err error) {
+	return DestroyVirtualMachineByName(name, true)
+}
+
+// ModifyVirtualMachineSpecByName 根据虚拟机名称修改虚拟机规格
+func ModifyVirtualMachineSpecByName(name string, cpuCoreCount int, memorySize int) (ok bool, err error) {
+	vm, err := FirstVirtualMachineByName(name)
 	if err != nil {
 		return false, err
 	}
@@ -473,30 +340,4 @@ func ModifyVirtualMachineSpec(name string, cpuCoreCount int, memorySize int) (ok
 		options = append(options, WithMemorySize(memorySize))
 	}
 	return vm.ModifySpec(options...)
-}
-
-func waitVMResult(res int32, service *wmiext2.Service, job *wmiext2.Instance, errorMsg string, translate func(int) error) error {
-	var err error
-
-	switch res {
-	case 0:
-		return nil
-	case 4096:
-		err = wmiext2.WaitJob(service, job)
-		defer job.Close()
-	default:
-		if translate != nil {
-			return translate(int(res))
-		}
-
-		return fmt.Errorf("%s (result code %d)", errorMsg, res)
-	}
-
-	if err != nil {
-		desc, _ := job.GetAsString("ErrorDescription")
-		desc = strings.Replace(desc, "\n", " ", -1)
-		return fmt.Errorf("%s: %w (%s)", errorMsg, err, desc)
-	}
-
-	return err
 }

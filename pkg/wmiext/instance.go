@@ -3,9 +3,6 @@ package wmiext
 import (
 	"fmt"
 	"github.com/go-ole/go-ole"
-	"github.com/microsoft/wmi/pkg/base/host"
-	"github.com/microsoft/wmi/pkg/base/instance"
-	wmi "github.com/microsoft/wmi/pkg/wmiinstance"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"reflect"
@@ -15,11 +12,6 @@ import (
 	"time"
 	"unsafe"
 )
-
-func GetWmiInstanceFromPath(namespaceName WmiNamespace, instancePath string) (*wmi.WmiInstance, error) {
-	wHost := host.NewWmiLocalHost()
-	return instance.GetWmiInstanceFromPath(wHost, namespaceName, instancePath)
-}
 
 const (
 	WmiPathKey = "__PATH"
@@ -33,6 +25,17 @@ type Instance struct {
 	object  *ole.IUnknown
 	vTable  *IWbemClassObjectVtbl
 	service *Service
+}
+
+func (i *Instance) GetService() *Service {
+	return i.service
+}
+
+type IWbemRefresherVtbl struct {
+	QueryInterface uintptr
+	AddRef         uintptr
+	Release        uintptr
+	Refresh        uintptr
 }
 
 type IWbemClassObjectVtbl struct {
@@ -313,6 +316,12 @@ func (i *Instance) GetAll(target interface{}) error {
 
 	// deref pointer
 	elem = elem.Elem()
+
+	// Set the *wmiext.Instance field in the target struct
+	if field := elem.FieldByName("Instance"); field.IsValid() && field.CanSet() {
+		field.Set(reflect.ValueOf(i))
+	}
+
 	var err error
 
 	if err = i.BeginEnumeration(); err != nil {
@@ -653,4 +662,46 @@ func (i *Instance) Method(method string) *MethodExecutor {
 	}
 
 	return &MethodExecutor{method: method, path: objPath, service: i.service, inParam: inParam, err: err}
+}
+
+// Refresh refreshes the instance data from the WMI provider.
+// See https://learn.microsoft.com/en-us/windows/win32/api/wbemcli/nf-wbemcli-iwbemrefresher-refresh
+func (i *Instance) Refresh() error {
+	var hr uintptr
+
+	vTable := (*IWbemRefresherVtbl)(unsafe.Pointer(i.object.RawVTable))
+
+	if hr, _, _ = syscall.SyscallN(
+		vTable.Refresh,                    // IWbemRefresher::Refresh(
+		uintptr(unsafe.Pointer(i.object)), // IWbemRefresher ptr
+		// [in]  long             lFlags)
+	); hr != 0 {
+		return NewWmiError(hr)
+	}
+
+	return nil
+}
+
+func (i *Instance) GetRelated(className string) (*Instance, error) {
+	path, err := i.Path()
+	if err != nil {
+		return nil, err
+	}
+	return i.service.FindFirstRelatedInstance(path, className)
+}
+
+func (i *Instance) GetAllRelated(className string) ([]*Instance, error) {
+	path, err := i.Path()
+	if err != nil {
+		return nil, err
+	}
+	return i.service.FindRelatedInstances(path, className)
+}
+
+func (i *Instance) GetReferences(className string) ([]*Instance, error) {
+	path, err := i.Path()
+	if err != nil {
+		return nil, err
+	}
+	return i.service.FindReferenceInstances(path, className)
 }

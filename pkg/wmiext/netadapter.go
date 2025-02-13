@@ -99,7 +99,7 @@ func networkAdapter(nad *netadapter.NetworkAdapter) (*NetworkAdapter, error) {
 		translatedMediaConnectState = "已断开"
 	}
 
-	state, err := nad.GetProperty("State")
+	state, err := nad.GetProperty("GetState")
 	stateNum := state.(int32)
 	if err != nil {
 		return nil, err

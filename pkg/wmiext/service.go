@@ -129,12 +129,12 @@ func CoSetProxyBlanket(service *ole.IUnknown) (err error) {
 	return nil
 }
 
-// NewLocalService creates a service and connect it to the local system at the specified namespace
+// NewLocalService creates a Service and connect it to the local system at the specified namespace
 func NewLocalService(namespace string) (s *Service, err error) {
 	return connectService(namespace)
 }
 
-// Close frees all associated memory with this service
+// Close frees all associated memory with this Service
 func (s *Service) Close() {
 	if s != nil && s.service != nil {
 		s.service.Release()
@@ -214,7 +214,7 @@ func (s *Service) GetObjectAsObject(objPath string, target interface{}) error {
 	if err != nil {
 		return err
 	}
-	defer instance.Close()
+	//defer instance.Close()
 
 	return instance.GetAll(target)
 }
@@ -299,10 +299,39 @@ func (s *Service) FindFirstInstance(wql string) (*Instance, error) {
 	}
 
 	if instance == nil {
-		return nil, ErrNoResults
+		return nil, NotFound
 	}
 
 	return instance, nil
+}
+
+// FindInstances find and returns the first WMI Instance in the result set for a WSL query.
+func (s *Service) FindInstances(wql string) ([]*Instance, error) {
+	var enum *Enum
+	var err error
+	if enum, err = s.ExecQuery(wql); err != nil {
+		return nil, err
+	}
+	defer enum.Close()
+
+	var instances []*Instance
+	for {
+		instance, err := enum.Next()
+		if err != nil {
+			return nil, err
+		}
+		if instance == nil {
+			break
+		}
+		instances = append(instances, instance)
+	}
+	return instances, nil
+}
+
+// FindRelatedInstances finds and returns all WMI Instances in the result set for a WQL query, and
+func (s *Service) FindRelatedInstances(objPath string, className string) ([]*Instance, error) {
+	wql := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass = %s", objPath, className)
+	return s.FindInstances(wql)
 }
 
 // FindFirstRelatedInstance finds and returns a related associator of the specified WMI object path of the
@@ -342,10 +371,47 @@ func (s *Service) FindFirstObject(wql string, target interface{}) error {
 	}
 
 	if done {
-		return errors.New("no results found")
+		return NotFound
 	}
 
 	return nil
+}
+
+// FindRelatedObjectsThrough finds and returns all WMI Instances in the result set for a WQL query, and
+func (s *Service) FindRelatedObjectsThrough(objPath, resultClass, assocClass string, targetSlice interface{}) error {
+	wql := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE AssocClass = %s ResultClass = %s ", objPath, assocClass, resultClass)
+	return s.FindObjects(wql, targetSlice)
+}
+
+// FindRelatedObjects finds and returns all WMI Instances in the result set for a WQL query, and
+func (s *Service) FindRelatedObjects(objPath, className string, targetSlice interface{}) error {
+	wql := fmt.Sprintf("ASSOCIATORS OF {%s} WHERE ResultClass = %s", objPath, className)
+	return s.FindObjects(wql, targetSlice)
+}
+
+// FindReferenceInstances finds and returns all WMI Instances in the result set for a WQL query
+func (s *Service) FindReferenceInstances(objPath string, className string) ([]*Instance, error) {
+	wql := fmt.Sprintf("REFERENCES OF {%s} WHERE ResultClass = %s", objPath, className)
+	return s.FindInstances(wql)
+}
+
+// FindReferenceObjects finds and returns all WMI Instances in the result set for a WQL query
+func (s *Service) FindReferenceObjects(objPath, className string, targetSlice interface{}) error {
+	wql := fmt.Sprintf("REFERENCES OF {%s} WHERE ResultClass = %s", objPath, className)
+	return s.FindObjects(wql, targetSlice)
+}
+
+// FindObjects finds and returns all WMI Instances in the result set for a WQL query,
+// and populates the slice pointer passed as targetSlice.
+func (s *Service) FindObjects(wql string, targetSlice interface{}) error {
+	var enum *Enum
+	var err error
+	if enum, err = s.ExecQuery(wql); err != nil {
+		return err
+	}
+	defer enum.Close()
+
+	return NextObjects(enum, targetSlice)
 }
 
 // GetSingletonInstance gets the first WMI instance of the specified object class type. This is a
