@@ -31,8 +31,8 @@ func TestVirtualMachine_RemoveVirtualNetworkAdapter(t *testing.T) {
 func TestVirtualNetworkAdapter_Connect(t *testing.T) {
 	virtualNetworkAdapter = MustFirstVirtualNetworkAdapterByName(virtualNetworkAdapterName)
 	vswName := "lan"
-	if ok, err = virtualNetworkAdapter.Connect(vswName); err != nil {
-		t.Fatalf("Connect failed: %v", err)
+	if ok, err = virtualNetworkAdapter.ConnectByName(vswName); err != nil {
+		t.Fatalf("ConnectByName failed: %v", err)
 	}
 	t.Logf("Virtual network adapter connected successfully")
 }

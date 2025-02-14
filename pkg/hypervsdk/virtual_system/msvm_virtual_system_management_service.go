@@ -1,6 +1,8 @@
 package virtual_system
 
 import (
+	"github.com/microsoft/wmi/pkg/base/instance"
+	"github.com/microsoft/wmi/pkg/constant"
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
@@ -392,7 +394,7 @@ func (vsms *VirtualSystemManagementService) AttachVirtualHardDisk(
 	}
 	defer virtualHardDisk.Close()
 
-	// Connect disk to drive
+	// ConnectByName disk to drive
 	if err = virtualHardDisk.SetParent(vhdDrive.Path()); err != nil {
 		return
 	}
@@ -549,11 +551,11 @@ func (vsms *VirtualSystemManagementService) ModifyFeatureSettings(
 		}
 
 		for _, resourceSetting := range resultingFeatureSettings {
-			var instance *wmiext.Instance
-			if instance, err = vsms.Session.GetObject(resourceSetting); err != nil {
+			var inst *wmiext.Instance
+			if inst, err = vsms.Session.GetObject(resourceSetting); err != nil {
 				return resultInstances, err
 			}
-			resultInstances = append(resultInstances, instance)
+			resultInstances = append(resultInstances, inst)
 		}
 
 		return resultInstances, nil
@@ -609,4 +611,31 @@ func (vsms *VirtualSystemManagementService) ConnectAdapterToVirtualSwitch(comput
 	}
 	_, err = vsms.ModifyResourceSettings([]string{pasd.GetCimText()})
 	return
+}
+
+// https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/setguestnetworkadapterconfiguration-msvm-virtualsystemmanagementservice
+func (vsms *VirtualSystemManagementService) SetGuestNetworkAdapterConfiguration(
+	computerSystem *ComputerSystem,
+	networkConfiguration *network_adapter.GuestNetworkAdapterConfiguration,
+) (
+	err error,
+) {
+	var (
+		job         *wmiext.Instance
+		returnValue int32
+	)
+
+	if err = vsms.Method("SetGuestNetworkAdapterConfiguration").
+		In("ComputerSystem", computerSystem.Path()).
+		In("NetworkConfiguration", []string{networkConfiguration.GetCimText()}).
+		Execute().
+		Out("Job", &job).
+		Out("ReturnValue", &returnValue).
+		End(); err != nil {
+		return
+	}
+
+	if err = utils.WaitResult(returnValue, vsms.Session, job, "Failed to modify allocation settings", nil); err != nil {
+		return
+	}
 }

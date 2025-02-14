@@ -233,6 +233,14 @@ func LocalVirtualEthernetSwitchManagementService() (*VirtualEthernetSwitchManage
 	return &VirtualEthernetSwitchManagementService{con, svc}, nil
 }
 
+func MustLocalVirtualEthernetSwitchManagementService() *VirtualEthernetSwitchManagementService {
+	vsms, err := LocalVirtualEthernetSwitchManagementService()
+	if err != nil {
+		panic(err)
+	}
+	return vsms
+}
+
 func (vsms *VirtualEthernetSwitchManagementService) GetVirtualEthernetSwitchSettingData(elementName string) (*networking.VirtualEthernetSwitchSettingData, error) {
 	virtualEthernetSwitchSettingData := &networking.VirtualEthernetSwitchSettingData{
 		ElementName: elementName,

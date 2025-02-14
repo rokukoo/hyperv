@@ -48,3 +48,11 @@ func FirstVirtualNetworkAdapterByName(session *wmiext.Service, name string) (*Vi
 	}
 	return NewVirtualNetworkAdapterFromInstance(ins)
 }
+
+func (vna *VirtualNetworkAdapter) GetGuestNetworkAdapterConfiguration() (*GuestNetworkAdapterConfiguration, error) {
+	inst, err := vna.GetRelated(Msvm_GuestNetworkAdapterConfiguration)
+	if err != nil {
+		return nil, err
+	}
+	return NewGuestNetworkAdapterConfiguration(inst)
+}

@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/switch_extension"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system/host"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
@@ -20,10 +19,10 @@ type VirtualNetworkAdapter struct {
 
 	MacAddress string
 
-	Ipv4Address []string
-	Gateway     []string
-	SubnetMask  []string
-	DnsServer   []string
+	IPAddress      []string
+	DefaultGateway []string
+	SubnetMask     []string
+	DNSServers     []string
 
 	IsEnableBandwidth bool
 	MinBandwidth      float64
@@ -107,9 +106,17 @@ func (vna *VirtualNetworkAdapter) GetVirtualMachine() (*VirtualMachine, error) {
 	return NewVirtualMachine(cs)
 }
 
-func (vna *VirtualNetworkAdapter) update(syntheticNetworkAdapter *network_adapter.VirtualNetworkAdapter) error {
+func (vna *VirtualNetworkAdapter) update(syntheticNetworkAdapter *network_adapter.VirtualNetworkAdapter) (err error) {
 	vna.VirtualNetworkAdapter = syntheticNetworkAdapter
 	vna.Name = syntheticNetworkAdapter.ElementName
+	configuration, err := vna.GetGuestNetworkAdapterConfiguration()
+	if err != nil {
+		return
+	}
+	vna.IPAddress = configuration.IPAddresses
+	vna.DefaultGateway = configuration.DefaultGateways
+	vna.SubnetMask = configuration.Subnets
+	vna.DNSServers = configuration.DNSServers
 	return nil
 }
 
@@ -206,61 +213,52 @@ func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBan
 		}
 	}
 
-	ethernetSwitchPortBandwidthSettingData, err := ethernetPortAllocationSettingData.GetRelated(switch_extension.Msvm_EthernetSwitchPortBandwidthSettingData)
+	ethernetSwitchPortBandwidthSettingData, err := ethernetPortAllocationSettingData.GetEthernetSwitchPortBandwidthSettingData()
 	if err != nil && !errors.Is(err, wmiext.NotFound) {
 		return err
 	}
+	defer ethernetSwitchPortBandwidthSettingData.Close()
 
-	var bandwidthSettingData *switch_extension.EthernetSwitchPortBandwidthSettingData
+	modifyBandwidthSettingData := func() error {
+		// Set the maximum bandwidth of the virtual network adapter
+		if err := ethernetSwitchPortBandwidthSettingData.SetLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+			return err
+		}
+		// Set the minimum bandwidth of the virtual network adapter
+		if err := ethernetSwitchPortBandwidthSettingData.SetReservation(uint64(reserveBandwidthMbps * 100000)); err != nil {
+			return err
+		}
+		//if err = bandwidthSettingData.SetBurstLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		//	return err
+		//}
+		//if err = bandwidthSettingData.SetBurstSize(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		//	return err
+		//}
+		return nil
+	}
 
 	// If the virtual network adapter bandwidth setting data does not exist, create a new one
 	if ethernetSwitchPortBandwidthSettingData == nil {
 		// Build a new virtual network adapter bandwidth setting data
-		if bandwidthSettingData, err = host.DefaultEthernetSwitchPortBandwidthSettingData(); err != nil {
+		if ethernetSwitchPortBandwidthSettingData, err = host.DefaultEthernetSwitchPortBandwidthSettingData(); err != nil {
 			return err
 		}
-		defer bandwidthSettingData.Close()
-
-		if err = bandwidthSettingData.SetLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		if err = modifyBandwidthSettingData(); err != nil {
 			return
 		}
-		if err = bandwidthSettingData.SetReservation(uint64(reserveBandwidthMbps * 100000)); err != nil {
-			return err
-		}
-		//if err = bandwidthSettingData.SetBurstLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
-		//	return err
-		//}
-		//if err = bandwidthSettingData.SetBurstSize(uint64(limitBandwidthMbps * 1000000)); err != nil {
-		//	return err
-		//}
-		_, err = vsms.AddFeatureSettings(ethernetPortAllocationSettingData.Path(), []string{bandwidthSettingData.GetCimText()})
-		return
+		_, err = vsms.AddFeatureSettings(ethernetPortAllocationSettingData.Path(), []string{ethernetSwitchPortBandwidthSettingData.GetCimText()})
 	} else {
 		// Modify the existing virtual network adapter bandwidth setting data
-		bandwidthSettingData, err = switch_extension.NewEthernetSwitchPortBandwidthSettingData(ethernetSwitchPortBandwidthSettingData)
-		if err != nil {
-			return err
-		}
-		defer bandwidthSettingData.Close()
-		if err = bandwidthSettingData.SetLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		if err = modifyBandwidthSettingData(); err != nil {
 			return
 		}
-		if err = bandwidthSettingData.SetReservation(uint64(reserveBandwidthMbps * 100000)); err != nil {
-			return err
-		}
-		//if err = bandwidthSettingData.SetBurstLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
-		//	return err
-		//}
-		//if err = bandwidthSettingData.SetBurstSize(uint64(limitBandwidthMbps * 1000000)); err != nil {
-		//	return err
-		//}
-		_, err = vsms.ModifyResourceSettings([]string{bandwidthSettingData.GetCimText()})
-		return
+		_, err = vsms.ModifyResourceSettings([]string{ethernetSwitchPortBandwidthSettingData.GetCimText()})
 	}
+	return
 }
 
-// Connect connects the virtual network adapter to a virtual switch
-func (vna *VirtualNetworkAdapter) Connect(vswName string) (bool, error) {
+// ConnectByName connects the virtual network adapter to a virtual switch
+func (vna *VirtualNetworkAdapter) ConnectByName(vswName string) (bool, error) {
 	var (
 		err            error
 		vsms           *virtual_system.VirtualSystemManagementService
@@ -277,7 +275,7 @@ func (vna *VirtualNetworkAdapter) Connect(vswName string) (bool, error) {
 	}
 
 	vnaName := vna.Name
-	// Connect the virtual network adapter to the virtual switch
+	// ConnectByName the virtual network adapter to the virtual switch
 	if vsw, err = networking.FirstVirtualEthernetSwitchByName(vsms.Session, vswName); err != nil {
 		return false, err
 	}
@@ -295,94 +293,49 @@ func (vna *VirtualNetworkAdapter) DisConnect() (err error) {
 	return
 }
 
-//
-//// ModifyConfiguration modifies the network adapter configuration
-//// ipV4Address: The IPv4 address
-//// subnetMask: The subnet mask
-//// defaultGateway: The default gateway
-//func (vna *VirtualNetworkAdapter) ModifyConfiguration(ipV4Address []string, subnetMask []string, defaultGateway []string, dnsServer []string) (bool, error) {
-//	var (
-//		err error
-//	)
-//	// Get the hyper-v virtual network adapter
-//	virtualNetworkAdapter := vna.VirtualNetworkAdapter
-//	// Get the network adapter guest configuration,
-//	// which is provided by the hyper-v and supports modifying the network adapter configuration without connecting to the virtual machine
-//	configuration, err := virtualNetworkAdapter.GetGuestNetworkAdapterConfiguration()
-//	if err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetPropertyDHCPEnabled(false); err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetProperty("ProtocolIFType", 4096); err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetPropertyIPAddresses(ipV4Address); err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetPropertySubnets(subnetMask); err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetPropertyDefaultGateways(defaultGateway); err != nil {
-//		return false, err
-//	}
-//	if err = configuration.SetPropertyDNSServers(dnsServer); err != nil {
-//		return false, err
-//	}
-//	// Apply the network adapter configuration
-//	virtualMachine, err := vna.VirtualMachine.VM()
-//	if err != nil {
-//		return false, err
-//	}
-//	vmms, err := wmiext.NewLocalVirtualSystemManagementService()
-//	if err != nil {
-//		return false, err
-//	}
-//	vmInstancePath := virtualMachine.InstancePath()
-//	embeddedConfigurationInstance, err := configuration.EmbeddedXMLInstance()
-//	if err != nil {
-//		return false, err
-//	}
-//	// Get the method to set the network adapter configuration
-//	method, err := vmms.GetWmiMethod("SetGuestNetworkAdapterConfiguration")
-//	if err != nil {
-//		return false, err
-//	}
-//	// Execute the method to set the network adapter configuration
-//	inparams := wmi.WmiMethodParamCollection{}
-//	inparams = append(inparams, wmi.NewWmiMethodParam("ComputerSystem", vmInstancePath))
-//	inparams = append(inparams, wmi.NewWmiMethodParam("NetworkConfiguration", []string{embeddedConfigurationInstance}))
-//	outparams := wmi.WmiMethodParamCollection{wmi.NewWmiMethodParam("Job", nil)}
-//	outparams = append(outparams, wmi.NewWmiMethodParam("ReturnValue", nil))
-//	// Execute the method to set the network adapter configuration
-//	result, err := method.Execute(inparams, outparams)
-//	if err != nil {
-//		return false, err
-//	}
-//
-//	if !(result.ReturnValue == 4096 || result.ReturnValue == 0) {
-//		err = errors.Wrapf(errors2.Failed, "Method failed with [%d]", result.ReturnValue)
-//		return false, nil
-//	}
-//
-//	if result.ReturnValue == 0 {
-//		return true, nil
-//	}
-//
-//	val, ok := result.OutMethodParams["Job"]
-//	if !ok || val.Value == nil {
-//		err = errors.Wrapf(errors2.NotFound, "Job")
-//		return false, err
-//	}
-//	job, err := instance.GetWmiJob(vmms.GetWmiHost(), string(constant.Virtualization), val.Value.(string))
-//	if err != nil {
-//		return false, err
-//	}
-//	defer job.Close()
-//	err = job.WaitForJobCompletion(result.ReturnValue, -1)
-//	return true, err
-//}
+// ModifyConfiguration modifies the network adapter configuration
+// ipV4Address: The IPv4 address
+// subnetMask: The subnet mask
+// defaultGateway: The default gateway
+func (vna *VirtualNetworkAdapter) ModifyConfiguration(
+	ipV4Address, subnetMask, defaultGateway, dnsServer []string,
+) (err error) {
+	var guestNetworkAdapterConfiguration *network_adapter.GuestNetworkAdapterConfiguration
+	// Get the network adapter guest guestNetworkAdapterConfiguration,
+	// which is provided by the hyper-v and supports modifying the network adapter guestNetworkAdapterConfiguration without connecting to the virtual machine
+	if guestNetworkAdapterConfiguration, err = vna.GetGuestNetworkAdapterConfiguration(); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetDHCPEnabled(false); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetProtocolIFType(network_adapter.IPv4); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetIPAddresses(ipV4Address); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetSubnets(subnetMask); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetDefaultGateways(defaultGateway); err != nil {
+		return
+	}
+	if err = guestNetworkAdapterConfiguration.SetDNSServers(dnsServer); err != nil {
+		return
+	}
+	// Apply the network adapter guestNetworkAdapterConfiguration
+	virtualMachine, err := vna.GetVirtualMachine()
+	if err != nil {
+		return
+	}
+	vmms, err := virtual_system.LocalVirtualSystemManagementService()
+	if err != nil {
+		return
+	}
+	err = vmms.SetGuestNetworkAdapterConfiguration(virtualMachine.ComputerSystem, guestNetworkAdapterConfiguration)
+	return
+}
 
 // FindVirtualNetworkAdapterByName returns the virtual network adapter
 func FindVirtualNetworkAdapterByName(name string) (virtualNetworkAdapters []*VirtualNetworkAdapter, err error) {

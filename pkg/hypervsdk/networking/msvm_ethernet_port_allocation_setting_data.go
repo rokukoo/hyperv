@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/switch_extension"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
@@ -67,4 +68,12 @@ func (epasd *EthernetPortAllocationSettingData) SetEnabledState(enabledState uin
 func (epasd *EthernetPortAllocationSettingData) SetHostResource(hostResource []string) error {
 	epasd.HostResource = hostResource
 	return epasd.Put("HostResource", hostResource)
+}
+
+func (epasd *EthernetPortAllocationSettingData) GetEthernetSwitchPortBandwidthSettingData() (*switch_extension.EthernetSwitchPortBandwidthSettingData, error) {
+	inst, err := epasd.GetRelated(switch_extension.Msvm_EthernetSwitchPortBandwidthSettingData)
+	if err != nil {
+		return nil, err
+	}
+	return switch_extension.NewEthernetSwitchPortBandwidthSettingData(inst)
 }

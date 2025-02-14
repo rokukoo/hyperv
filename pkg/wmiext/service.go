@@ -71,7 +71,7 @@ func connectService(namespace string) (*Service, error) {
 		return nil, err
 	}
 
-	// Connect with en_US LCID since we do pattern matching against English key values
+	// ConnectByName with en_US LCID since we do pattern matching against English key values
 	if strLocale, err = syscall.UTF16PtrFromString("MS_409"); err != nil {
 		return nil, err
 	}

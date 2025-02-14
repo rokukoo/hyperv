@@ -17,8 +17,16 @@ const (
 	VirtualSwitchTypeExternalDirect
 )
 
+// VirtualSwitch represents a Hyper-V virtual switch
 type VirtualSwitch struct {
-	*networking.VirtualEthernetSwitch
+	// Name of the virtual switch
+	Name string `json:"name"`
+	// Description of the virtual switch
+	Description string `json:"description"`
+	// Type of the virtual switch, can be private, internal, external bridge or external direct
+	Type                              VirtualSwitchType `json:"type"`
+	PhysicalAdapter                   *string           `json:"physical_adapter"`
+	*networking.VirtualEthernetSwitch `json:"-"`
 }
 
 func NewVirtualSwitch(virtualEthernetSwitch *networking.VirtualEthernetSwitch) (*VirtualSwitch, error) {
@@ -27,25 +35,23 @@ func NewVirtualSwitch(virtualEthernetSwitch *networking.VirtualEthernetSwitch) (
 	return vsw, vsw.update(virtualEthernetSwitch)
 }
 
-func (vsw *VirtualSwitch) update(virtualEthernetSwitch *networking.VirtualEthernetSwitch) error {
+func (vsw *VirtualSwitch) update(virtualEthernetSwitch *networking.VirtualEthernetSwitch) (err error) {
 	vsw.VirtualEthernetSwitch = virtualEthernetSwitch
+	vsw.Name = virtualEthernetSwitch.ElementName
+	vsw.Description = virtualEthernetSwitch.Description
+	vsw.Type, err = vsw.GetType()
+	if err != nil {
+		return errors.Wrap(err, "failed to get virtual switch type")
+	}
 	return nil
 }
 
-func GetVirtualSwitchTypeByName(name string) (VirtualSwitchType, error) {
+func (vsw *VirtualSwitch) GetType() (VirtualSwitchType, error) {
 	var (
-		vsms *networking_service.VirtualEthernetSwitchManagementService
-		vsw  *networking.VirtualEthernetSwitch
-		err  error
+		err error
 		internalPortAllocSettings,
 		externalPortAllocSettings *networking.EthernetPortAllocationSettingData
 	)
-	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
-		return 0, errors.Wrap(err, "failed to get virtual switch management service")
-	}
-	if vsw, err = vsms.FirstVirtualSwitchByName(name); err != nil {
-		return 0, errors.Wrap(err, "failed to find virtual switch")
-	}
 	if internalPortAllocSettings, err = vsw.GetInternalPortAllocSettings(); err != nil && !errors.Is(err, wmiext.NotFound) {
 		return 0, errors.Wrap(err, "failed to get internal port allocation setting data")
 	}
@@ -67,34 +73,31 @@ func GetVirtualSwitchTypeByName(name string) (VirtualSwitchType, error) {
 	}
 }
 
-func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, adapter *string) error {
+func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *string) (err error) {
+	virtualSwitch := vsw.VirtualEthernetSwitch
 	var vsms *networking_service.VirtualEthernetSwitchManagementService
-	var err error
+
 	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
 		return errors.Wrap(err, "failed to get virtual switch management service")
 	}
 
-	var vsw *networking.VirtualEthernetSwitch
-	if vsw, err = vsms.FirstVirtualSwitchByName(name); err != nil {
-		return errors.Wrap(err, "failed to find virtual switch")
-	}
 	switch switchType {
 	case VirtualSwitchTypePrivate:
 		// Change virtual switch to private
-		if err = vsms.ClearInternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearInternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear internal port allocation setting data")
 		}
-		if err = vsms.ClearExternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearExternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear external port allocation setting data")
 		}
 		return nil
 	case VirtualSwitchTypeInternal:
 		// Change virtual switch to internal
 		var resourceSettings []*networking.EthernetPortAllocationSettingData
-		_, err = vsw.GetInternalPortAllocSettings()
+		_, err = virtualSwitch.GetInternalPortAllocSettings()
 		if err != nil {
 			if errors.Is(err, wmiext.NotFound) {
-				epads, err := vsms.DefaultInternalPortAllocationSettingData(vsw.ElementName)
+				epads, err := vsms.DefaultInternalPortAllocationSettingData(virtualSwitch.ElementName)
 				if err != nil {
 					return errors.Wrap(err, "failed to get internal port allocation settings")
 				}
@@ -103,14 +106,14 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 				return errors.Wrap(err, "failed to get internal port allocation settings")
 			}
 		}
-		settingData, err := vsw.ActiveVirtualEthernetSwitchSettingData()
+		settingData, err := virtualSwitch.ActiveVirtualEthernetSwitchSettingData()
 		if err != nil {
 			return errors.Wrap(err, "failed to get active virtual ethernet switch setting data")
 		}
 		if _, err = vsms.AddResourceSettings(settingData, resourceSettings); err != nil {
 			return errors.Wrap(err, "failed to add allocation settings")
 		}
-		if err = vsms.ClearExternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearExternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear external port allocation setting data")
 		}
 		return nil
@@ -119,10 +122,10 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 			return errors.New("adapter is required for external bridge")
 		}
 		var resourceSettings []*networking.EthernetPortAllocationSettingData
-		_, err = vsw.GetInternalPortAllocSettings()
+		_, err = virtualSwitch.GetInternalPortAllocSettings()
 		if err != nil {
 			if errors.Is(err, wmiext.NotFound) {
-				epads, err := vsms.DefaultInternalPortAllocationSettingData(vsw.ElementName)
+				epads, err := vsms.DefaultInternalPortAllocationSettingData(virtualSwitch.ElementName)
 				if err != nil {
 					return errors.Wrap(err, "failed to get internal port allocation settings")
 				}
@@ -131,15 +134,15 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 				return errors.Wrap(err, "failed to get internal port allocation settings")
 			}
 		}
-		if err = vsms.ClearExternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearExternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear external port allocation setting data")
 		}
-		epads, err := vsms.DefaultExternalPortAllocationSettingData(vsw.ElementName, []string{*adapter})
+		epads, err := vsms.DefaultExternalPortAllocationSettingData(virtualSwitch.ElementName, []string{*adapter})
 		if err != nil {
 			return errors.Wrap(err, "failed to get external port allocation settings")
 		}
 		resourceSettings = append(resourceSettings, epads)
-		settingData, err := vsw.ActiveVirtualEthernetSwitchSettingData()
+		settingData, err := virtualSwitch.ActiveVirtualEthernetSwitchSettingData()
 		if err != nil {
 			return errors.Wrap(err, "failed to get active virtual ethernet switch setting data")
 		}
@@ -154,18 +157,18 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 		}
 		var resourceSettings []*networking.EthernetPortAllocationSettingData
 		// Change virtual switch to private
-		if err = vsms.ClearInternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearInternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear internal port allocation setting data")
 		}
-		if err = vsms.ClearExternalPortAllocationSettingData(vsw); err != nil {
+		if err = vsms.ClearExternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear external port allocation setting data")
 		}
-		epads, err := vsms.DefaultExternalPortAllocationSettingData(vsw.ElementName, []string{*adapter})
+		epads, err := vsms.DefaultExternalPortAllocationSettingData(virtualSwitch.ElementName, []string{*adapter})
 		if err != nil {
 			return errors.Wrap(err, "failed to get external port allocation settings")
 		}
 		resourceSettings = append(resourceSettings, epads)
-		settingData, err := vsw.ActiveVirtualEthernetSwitchSettingData()
+		settingData, err := virtualSwitch.ActiveVirtualEthernetSwitchSettingData()
 		if err != nil {
 			return errors.Wrap(err, "failed to get active virtual ethernet switch setting data")
 		}
@@ -173,11 +176,12 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 			return errors.Wrap(err, "failed to add allocation settings")
 		}
 		return nil
+	default:
+		return errors.New("invalid virtual switch type")
 	}
-	return nil
 }
 
-func CreateVirtualSwitch(name string, description string, switchType VirtualSwitchType, adapter *string) (*networking.VirtualEthernetSwitch, error) {
+func CreateVirtualSwitch(name string, switchType VirtualSwitchType, adapter *string) (*VirtualSwitch, error) {
 	var (
 		vsw = &networking.VirtualEthernetSwitch{}
 		err error
@@ -188,25 +192,25 @@ func CreateVirtualSwitch(name string, description string, switchType VirtualSwit
 		if vsw, err = CreatePrivateVirtualSwitch(name); err != nil {
 			return nil, errors.Wrap(err, "failed to create private virtual switch")
 		}
-		return vsw, nil
+		return NewVirtualSwitch(vsw)
 	case VirtualSwitchTypeInternal:
 		// Build internal virtual switch
 		if vsw, err = CreateInternalVirtualSwitch(name); err != nil {
 			return nil, errors.Wrap(err, "failed to create internal virtual")
 		}
-		return vsw, nil
+		return NewVirtualSwitch(vsw)
 	case VirtualSwitchTypeExternalBridge:
 		// Build external virtual switch
 		if vsw, err = CreateExternalVirtualSwitch(name, *adapter, true); err != nil {
 			return nil, errors.Wrap(err, "failed to create external virtual switch")
 		}
-		return vsw, nil
+		return NewVirtualSwitch(vsw)
 	case VirtualSwitchTypeExternalDirect:
 		// Build external virtual switch directly
 		if vsw, err = CreateExternalVirtualSwitch(name, *adapter, false); err != nil {
 			return nil, errors.Wrap(err, "failed to create external virtual switch")
 		}
-		return vsw, nil
+		return NewVirtualSwitch(vsw)
 	default:
 		return nil, errors.New("invalid virtual switch type")
 	}
@@ -257,33 +261,15 @@ func CreateExternalVirtualSwitch(name, networkInterfaceDescription string, inter
 		return nil, err
 	}
 	portName := uuid.NewString()
-	vswitch, err := vsms.CreateExternalVirtualSwitch(networkInterfaceDescription, portName, portName, switchSettingData, internalport)
+	vSwitch, err := vsms.CreateExternalVirtualSwitch(networkInterfaceDescription, portName, portName, switchSettingData, internalport)
 	if err != nil {
 		return nil, err
 	}
-	return vswitch, nil
+	return vSwitch, nil
 }
 
-// DeleteVirtualSwitchByName removes a virtual switch by name
-func DeleteVirtualSwitchByName(name string) (bool, error) {
-	var (
-		vsms *networking_service.VirtualEthernetSwitchManagementService
-		vsw  *networking.VirtualEthernetSwitch
-		err  error
-	)
-	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
-		return false, err
-	}
-	if vsw, err = vsms.FirstVirtualSwitchByName(name); err != nil {
-		return false, err
-	}
-	if err = vsms.DestroySystem(vsw); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func FindVirtualSwitchByName(name string) (*networking.VirtualEthernetSwitch, error) {
+// FirstVirtualSwitchByName returns the first virtual switch by name
+func FirstVirtualSwitchByName(name string) (*VirtualSwitch, error) {
 	var (
 		vsms *networking_service.VirtualEthernetSwitchManagementService
 		err  error
@@ -291,5 +277,53 @@ func FindVirtualSwitchByName(name string) (*networking.VirtualEthernetSwitch, er
 	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
 		return nil, err
 	}
-	return vsms.FirstVirtualSwitchByName(name)
+	virtualSwitch, err := vsms.FirstVirtualSwitchByName(name)
+	return NewVirtualSwitch(virtualSwitch)
+}
+
+func MustFirstVirtualSwitchByName(name string) *VirtualSwitch {
+	vsw, err := FirstVirtualSwitchByName(name)
+	if err != nil {
+		panic(err)
+	}
+	return vsw
+}
+
+func GetVirtualSwitchTypeByName(name string) (VirtualSwitchType, error) {
+	vsw, err := FirstVirtualSwitchByName(name)
+	if err != nil {
+		return 0, err
+	}
+	return vsw.Type, nil
+}
+
+func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, adapter *string) error {
+	vsw, err := FirstVirtualSwitchByName(name)
+	if err != nil {
+		return err
+	}
+	return vsw.ChangeType(switchType, adapter)
+}
+
+// DeleteVirtualSwitchByName removes a virtual switch by name
+func DeleteVirtualSwitchByName(name string) (err error) {
+	var (
+		vsms *networking_service.VirtualEthernetSwitchManagementService
+		vsw  *networking.VirtualEthernetSwitch
+	)
+	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
+		return
+	}
+	if vsw, err = vsms.FirstVirtualSwitchByName(name); err != nil {
+		return
+	}
+	if err = vsms.DestroySystem(vsw); err != nil {
+		return
+	}
+	return
+}
+
+func ListAvailablePhysicalNetworkAdapters() ([]string, error) {
+	var nics []string
+	return nics, nil
 }
