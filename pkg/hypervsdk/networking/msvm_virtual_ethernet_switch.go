@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	Msvm_VirtualEthernetSwitch = "Msvm_VirtualEthernetSwitch"
+)
+
 // VirtualEthernetSwitch represents a virtual ethernet switch
 // https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/msvm-virtualethernetswitch
 type VirtualEthernetSwitch struct {
@@ -106,7 +110,7 @@ func (vswitch *VirtualEthernetSwitch) GetEthernetPortAllocSettings() ([]Ethernet
 
 func (vswitch *VirtualEthernetSwitch) ActiveVirtualEthernetSwitchSettingData() (*VirtualEthernetSwitchSettingData, error) {
 	port := &VirtualEthernetSwitchSettingData{}
-	return port, vswitch.GetService().FindFirstRelatedObject(vswitch.Path(), "Msvm_VirtualEthernetSwitchSettingData", port)
+	return port, vswitch.GetService().FindFirstRelatedObject(vswitch.Path(), Msvm_VirtualEthernetSwitchSettingData, port)
 }
 
 func FirstVirtualEthernetSwitchByName(session *wmiext.Service, name string) (*VirtualEthernetSwitch, error) {

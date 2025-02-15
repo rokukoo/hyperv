@@ -8,7 +8,6 @@ import (
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"log"
 	"os"
-	"strings"
 )
 
 type VirtualMachineState = virtual_system.ComputerSystemState
@@ -21,12 +20,36 @@ const (
 
 // https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/msvm-computersystem
 type VirtualMachine struct {
-	Name         string  `json:"name"`
-	Description  *string `json:"description"`
-	SavePath     string  `json:"save_path"`
-	CpuCoreCount int     `json:"cpu_core_count"`
-	MemorySizeMB int     `json:"memory_size"`
-	*virtual_system.ComputerSystem
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	SavePath       string `json:"save_path"`
+	CpuCoreCount   int    `json:"cpu_core_count"`
+	MemorySizeMB   int    `json:"memory_size"`
+	computerSystem *virtual_system.ComputerSystem
+}
+
+func (vm *VirtualMachine) Start() error {
+	return vm.computerSystem.Start()
+}
+
+func (vm *VirtualMachine) Stop(force bool) error {
+	return vm.computerSystem.Stop(force)
+}
+
+func (vm *VirtualMachine) ForceStop() error {
+	return vm.computerSystem.ForceStop()
+}
+
+func (vm *VirtualMachine) Reboot(force bool) error {
+	return vm.computerSystem.Reboot(force)
+}
+
+func (vm *VirtualMachine) ForceReboot() error {
+	return vm.computerSystem.ForceReboot()
+}
+
+func (vm *VirtualMachine) Resume() error {
+	return vm.computerSystem.Resume()
 }
 
 // State 获取虚拟机实时状态
@@ -34,7 +57,7 @@ func (vm *VirtualMachine) State() VirtualMachineState {
 	var err error
 	var state VirtualMachineState
 
-	if state, err = vm.GetState(); err != nil {
+	if state, err = vm.computerSystem.GetState(); err != nil {
 		log.Fatalf("failed to get vm state: %v", err)
 	}
 
@@ -45,26 +68,25 @@ func (vm *VirtualMachine) State() VirtualMachineState {
 // 由于 Hyper-V 平台原生挂起功能并非真正意义上的挂起, 而是保存虚拟机的状态, 因此这里的挂起操作实际上是保存虚拟机的状态
 // 保存虚拟机的状态后, 可以通过 Resume 恢复虚拟机的运行
 func (vm *VirtualMachine) Suspend() error {
-	return vm.Save()
+	return vm.computerSystem.Save()
 }
 
 func (vm *VirtualMachine) update(cs *virtual_system.ComputerSystem) error {
 	var err error
 	var virtualSystemSettingData *virtual_system.VirtualSystemSettingData
 
-	vm.ComputerSystem = cs
+	vm.computerSystem = cs
 
-	if virtualSystemSettingData, err = vm.GetVirtualSystemSettingData(); err != nil {
+	if virtualSystemSettingData, err = vm.computerSystem.GetVirtualSystemSettingData(); err != nil {
 		return err
 	}
 
 	vm.Name = cs.ElementName
-	description := strings.Join(virtualSystemSettingData.Notes, ",")
-	vm.Description = &description
+	vm.Description = virtualSystemSettingData.Notes[0]
 	vm.SavePath = virtualSystemSettingData.ConfigurationDataRoot
 
-	vm.CpuCoreCount = int(vm.MustGetProcessorSettingData().VirtualQuantity)
-	vm.MemorySizeMB = int(vm.MustGetMemorySettingData().VirtualQuantity)
+	vm.CpuCoreCount = int(vm.computerSystem.MustGetProcessorSettingData().VirtualQuantity)
+	vm.MemorySizeMB = int(vm.computerSystem.MustGetMemorySettingData().VirtualQuantity)
 
 	return nil
 }
@@ -88,8 +110,8 @@ func (vm *VirtualMachine) Create() (err error) {
 
 	builder.PrepareSystemSettings(vm.Name, func(systemSettingsData *virtual_system.VirtualSystemSettingData) {
 		systemSettingsData.ConfigurationDataRoot = vm.SavePath
-		if vm.Description != nil {
-			systemSettingsData.Notes = []string{*vm.Description}
+		if vm.Description != "" {
+			systemSettingsData.Notes = []string{vm.Description}
 		}
 	})
 
@@ -110,7 +132,7 @@ func (vm *VirtualMachine) Create() (err error) {
 		return err
 	}
 
-	if err = vm.update(buildVM.ComputerSystem); err != nil {
+	if err = vm.update(buildVM.computerSystem); err != nil {
 		return err
 	}
 
@@ -144,15 +166,15 @@ func WithStop(confirmStop bool) Option {
 	}
 }
 
-// ModifySpec 修改虚拟机规格
-func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
+// Modify 修改虚拟机规格
+func (vm *VirtualMachine) Modify(options ...Option) (ok bool, err error) {
 	var originalState = vm.State()
 	opts := new(ModifySpecOptions)
 	for _, option := range options {
 		option(opts)
 	}
 	if opts.confirmStop && vm.State() != StateStopped {
-		if err = vm.ForceStop(); err != nil {
+		if err = vm.computerSystem.ForceStop(); err != nil {
 			return
 		}
 	}
@@ -167,7 +189,7 @@ func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
 			return false, errors.New("vm must be stopped before modifying spec")
 		}
 
-		processorSettingData := vm.MustGetProcessorSettingData()
+		processorSettingData := vm.computerSystem.MustGetProcessorSettingData()
 		processorSettingData.VirtualQuantity = uint64(opts.cpuCoreCount)
 
 		if err = processorSettingData.Put("VirtualQuantity", processorSettingData.VirtualQuantity); err != nil {
@@ -182,7 +204,7 @@ func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
 	}
 	if opts.memorySizeMB > 0 {
 		// HyperV 允许虚拟机运行状态下, 修改内存大小
-		memorySettingData := vm.MustGetMemorySettingData()
+		memorySettingData := vm.computerSystem.MustGetMemorySettingData()
 
 		memorySettingData.VirtualQuantity = uint64(opts.memorySizeMB)
 
@@ -194,7 +216,7 @@ func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
 			if errors.Unwrap(err).(*wmiext.JobError).ErrorCode == 32768 {
 				// Error code 32768: The operation cannot be performed while the virtual machine is in its current state.
 				// Maybe the virtual machine does not support resizing memory dynamically (with not stop), try to stop the virtual machine and try again
-				if err = vm.ForceStop(); err != nil {
+				if err = vm.computerSystem.ForceStop(); err != nil {
 					return false, err
 				}
 				if err = vmms.ModifyMemorySettings(memorySettingData); err != nil {
@@ -209,7 +231,7 @@ func (vm *VirtualMachine) ModifySpec(options ...Option) (ok bool, err error) {
 	}
 
 	if vm.State() != originalState {
-		if err = vm.ChangeState(originalState); err != nil {
+		if err = vm.computerSystem.ChangeState(originalState); err != nil {
 			return false, err
 		}
 	}
@@ -308,7 +330,7 @@ func DestroyVirtualMachineByName(name string, del bool) (ok bool, err error) {
 		return false, errors.New("vm must be stopped before deleting")
 	}
 
-	if err = vmms.DestroySystem(vm.ComputerSystem); err != nil {
+	if err = vmms.DestroySystem(vm.computerSystem); err != nil {
 		return false, err
 	}
 	if del {
@@ -325,19 +347,25 @@ func DeleteVirtualMachineByName(name string) (ok bool, err error) {
 	return DestroyVirtualMachineByName(name, true)
 }
 
+func (vm *VirtualMachine) ModifySpec(cpuCoreCount, memorySize int) (ok bool, err error) {
+	var options []Option
+	if cpuCoreCount > 0 {
+		vm.CpuCoreCount = cpuCoreCount
+		options = append(options, WithCpuCoreCount(cpuCoreCount))
+		options = append(options, WithStop(true))
+	}
+	if memorySize > 0 {
+		vm.MemorySizeMB = memorySize
+		options = append(options, WithMemorySize(memorySize))
+	}
+	return vm.Modify(options...)
+}
+
 // ModifyVirtualMachineSpecByName 根据虚拟机名称修改虚拟机规格
 func ModifyVirtualMachineSpecByName(name string, cpuCoreCount int, memorySize int) (ok bool, err error) {
 	vm, err := FirstVirtualMachineByName(name)
 	if err != nil {
 		return false, err
 	}
-	var options []Option
-	if cpuCoreCount > 0 {
-		options = append(options, WithCpuCoreCount(cpuCoreCount))
-		options = append(options, WithStop(true))
-	}
-	if memorySize > 0 {
-		options = append(options, WithMemorySize(memorySize))
-	}
-	return vm.ModifySpec(options...)
+	return vm.ModifySpec(cpuCoreCount, memorySize)
 }

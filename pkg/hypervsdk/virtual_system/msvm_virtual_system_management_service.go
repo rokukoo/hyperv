@@ -1,8 +1,6 @@
 package virtual_system
 
 import (
-	"github.com/microsoft/wmi/pkg/base/instance"
-	"github.com/microsoft/wmi/pkg/constant"
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
@@ -563,6 +561,43 @@ func (vsms *VirtualSystemManagementService) ModifyFeatureSettings(
 	}
 }
 
+// RemoveFeatureSettings - 删除虚拟机以太网连接的当前功能设置
+//
+// Microsoft Documentation: https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/removefeaturesettings-msvm-virtualsystemmanagementservice
+func (vsms *VirtualSystemManagementService) RemoveFeatureSettings(
+	featureSettings []string,
+) (
+	err error,
+) {
+	var (
+		job         *wmiext.Instance
+		returnValue int32
+	)
+
+	for {
+		if err = vsms.Method("RemoveFeatureSettings").
+			In("FeatureSettings", featureSettings).
+			Execute().
+			Out("Job", &job).
+			Out("ReturnValue", &returnValue).
+			End(); err != nil {
+			return
+		}
+
+		if err = utils.WaitResult(returnValue, vsms.Session, job, "Failed to modify allocation settings", nil); err != nil {
+			return
+		}
+
+		if returnValue == 32775 {
+			//log.Printf("[WMI] Method [%s] failed with [%d]. Retrying ...", "DestroySystem", returnValue)
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		return nil
+	}
+}
+
 func (vsms *VirtualSystemManagementService) DisConnectAdapterToVirtualSwitch(vnaName string) (err error) {
 	adapter, err := network_adapter.FirstVirtualNetworkAdapterByName(vsms.Session, vnaName)
 	if err != nil {
@@ -626,7 +661,7 @@ func (vsms *VirtualSystemManagementService) SetGuestNetworkAdapterConfiguration(
 	)
 
 	if err = vsms.Method("SetGuestNetworkAdapterConfiguration").
-		In("ComputerSystem", computerSystem.Path()).
+		In("computerSystem", computerSystem.Path()).
 		In("NetworkConfiguration", []string{networkConfiguration.GetCimText()}).
 		Execute().
 		Out("Job", &job).
@@ -638,4 +673,6 @@ func (vsms *VirtualSystemManagementService) SetGuestNetworkAdapterConfiguration(
 	if err = utils.WaitResult(returnValue, vsms.Session, job, "Failed to modify allocation settings", nil); err != nil {
 		return
 	}
+
+	return
 }

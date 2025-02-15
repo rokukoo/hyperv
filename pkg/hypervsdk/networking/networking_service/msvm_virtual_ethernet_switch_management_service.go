@@ -89,17 +89,18 @@ func (vsms *VirtualEthernetSwitchManagementService) RemoveResourceSettings(resou
 		case 0:
 			return nil
 		case 4096:
-			if err = wmiext.WaitJob(vsms.Con, job); err != nil {
-				desc, _ := job.GetAsString("ErrorDescription")
-				desc = strings.Replace(desc, "\n", " ", -1)
-				return fmt.Errorf("failed to destroy system:%w (%s)", err, desc)
+			if err = utils.WaitResult(returnValue, vsms.Con, job, "failed to remove allocation settings", nil); err != nil {
+				return err
 			}
 			return nil
 		}
 	}
 }
 
-func (vsms *VirtualEthernetSwitchManagementService) DefineSystem(settings *networking.VirtualEthernetSwitchSettingData, resourceSettings []*networking.EthernetPortAllocationSettingData) (*networking.VirtualEthernetSwitch, error) {
+func (vsms *VirtualEthernetSwitchManagementService) DefineSystem(
+	settings *networking.VirtualEthernetSwitchSettingData,
+	resourceSettings []*networking.EthernetPortAllocationSettingData,
+) (*networking.VirtualEthernetSwitch, error) {
 	var (
 		vswitch = &networking.VirtualEthernetSwitch{}
 		err     error
@@ -140,9 +141,12 @@ func (vsms *VirtualEthernetSwitchManagementService) DefineSystem(settings *netwo
 	switch res {
 	// Success
 	case 0:
-		if err = vsms.Con.FindFirstRelatedObject(resultingSystem, "Msvm_VirtualEthernetSwitchSettingData", vswitch); err != nil {
+		if err = vsms.Con.GetObjectAsObject(resultingSystem, vswitch); err != nil {
 			return nil, err
 		}
+		//if err = vsms.Con.FindFirstRelatedObject(resultingSystem, "Msvm_VirtualEthernetSwitchSettingData", vswitch); err != nil {
+		//	return nil, err
+		//}
 		return vswitch, nil
 	// Job in progress
 	case 4096:

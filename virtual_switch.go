@@ -24,24 +24,39 @@ type VirtualSwitch struct {
 	// Description of the virtual switch
 	Description string `json:"description"`
 	// Type of the virtual switch, can be private, internal, external bridge or external direct
-	Type                              VirtualSwitchType `json:"type"`
-	PhysicalAdapter                   *string           `json:"physical_adapter"`
-	*networking.VirtualEthernetSwitch `json:"-"`
+	Type                  VirtualSwitchType `json:"type"`
+	PhysicalAdapter       *string           `json:"physical_adapter"`
+	virtualEthernetSwitch *networking.VirtualEthernetSwitch
 }
 
 func NewVirtualSwitch(virtualEthernetSwitch *networking.VirtualEthernetSwitch) (*VirtualSwitch, error) {
 	vsw := &VirtualSwitch{}
-	vsw.VirtualEthernetSwitch = virtualEthernetSwitch
+	vsw.virtualEthernetSwitch = virtualEthernetSwitch
 	return vsw, vsw.update(virtualEthernetSwitch)
 }
 
 func (vsw *VirtualSwitch) update(virtualEthernetSwitch *networking.VirtualEthernetSwitch) (err error) {
-	vsw.VirtualEthernetSwitch = virtualEthernetSwitch
+	vsw.virtualEthernetSwitch = virtualEthernetSwitch
 	vsw.Name = virtualEthernetSwitch.ElementName
-	vsw.Description = virtualEthernetSwitch.Description
+	virtualEthernetSwitchSettingData, err := virtualEthernetSwitch.ActiveVirtualEthernetSwitchSettingData()
+	if err != nil {
+		return
+	}
+	vsw.Description = virtualEthernetSwitchSettingData.Notes[0]
 	vsw.Type, err = vsw.GetType()
 	if err != nil {
 		return errors.Wrap(err, "failed to get virtual switch type")
+	}
+	externalPortAllocSettings, err := virtualEthernetSwitch.GetExternalPortAllocSettings()
+	if err != nil && !errors.Is(err, wmiext.NotFound) {
+		return errors.Wrap(err, "failed to get external port allocation setting data")
+	}
+	if externalPortAllocSettings != nil {
+		externalPort := &networking.ExternalEthernetPort{}
+		if err = virtualEthernetSwitch.GetService().GetObjectAsObject(externalPortAllocSettings.HostResource[0], externalPort); err != nil {
+			return errors.Wrap(err, "failed to find external ethernet port")
+		}
+		vsw.PhysicalAdapter = &externalPort.Name
 	}
 	return nil
 }
@@ -52,10 +67,10 @@ func (vsw *VirtualSwitch) GetType() (VirtualSwitchType, error) {
 		internalPortAllocSettings,
 		externalPortAllocSettings *networking.EthernetPortAllocationSettingData
 	)
-	if internalPortAllocSettings, err = vsw.GetInternalPortAllocSettings(); err != nil && !errors.Is(err, wmiext.NotFound) {
+	if internalPortAllocSettings, err = vsw.virtualEthernetSwitch.GetInternalPortAllocSettings(); err != nil && !errors.Is(err, wmiext.NotFound) {
 		return 0, errors.Wrap(err, "failed to get internal port allocation setting data")
 	}
-	if externalPortAllocSettings, err = vsw.GetExternalPortAllocSettings(); err != nil && !errors.Is(err, wmiext.NotFound) {
+	if externalPortAllocSettings, err = vsw.virtualEthernetSwitch.GetExternalPortAllocSettings(); err != nil && !errors.Is(err, wmiext.NotFound) {
 		return 0, errors.Wrap(err, "failed to get internal port allocation setting data")
 	}
 	if internalPortAllocSettings != nil {
@@ -74,7 +89,7 @@ func (vsw *VirtualSwitch) GetType() (VirtualSwitchType, error) {
 }
 
 func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *string) (err error) {
-	virtualSwitch := vsw.VirtualEthernetSwitch
+	virtualSwitch := vsw.virtualEthernetSwitch
 	var vsms *networking_service.VirtualEthernetSwitchManagementService
 
 	if vsms, err = networking_service.LocalVirtualEthernetSwitchManagementService(); err != nil {
@@ -278,6 +293,9 @@ func FirstVirtualSwitchByName(name string) (*VirtualSwitch, error) {
 		return nil, err
 	}
 	virtualSwitch, err := vsms.FirstVirtualSwitchByName(name)
+	if err != nil {
+		return nil, err
+	}
 	return NewVirtualSwitch(virtualSwitch)
 }
 

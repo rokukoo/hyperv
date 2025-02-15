@@ -77,3 +77,11 @@ func (epasd *EthernetPortAllocationSettingData) GetEthernetSwitchPortBandwidthSe
 	}
 	return switch_extension.NewEthernetSwitchPortBandwidthSettingData(inst)
 }
+
+func (epasd *EthernetPortAllocationSettingData) GetEthernetSwitchPortVlanSettingData() (*switch_extension.EthernetSwitchPortVlanSettingData, error) {
+	inst, err := epasd.GetRelated(switch_extension.Msvm_EthernetSwitchPortVlanSettingData)
+	if err != nil {
+		return nil, err
+	}
+	return switch_extension.NewEthernetSwitchPortVlanSettingData(inst)
+}

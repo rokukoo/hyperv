@@ -11,13 +11,10 @@ import (
 )
 
 type VirtualNetworkAdapter struct {
-	Name        string
-	Description string
+	Name string
 
-	IsEnableVlan bool
-	VlanId       int
-
-	MacAddress string
+	StaticMacAddress bool
+	MacAddress       string
 
 	IPAddress      []string
 	DefaultGateway []string
@@ -27,7 +24,65 @@ type VirtualNetworkAdapter struct {
 	IsEnableBandwidth bool
 	MinBandwidth      float64
 	MaxBandwidth      float64
-	*network_adapter.VirtualNetworkAdapter
+
+	IsEnableVlan bool
+	VlanId       int
+
+	virtualNetworkAdapter *network_adapter.VirtualNetworkAdapter
+}
+
+func (vna *VirtualNetworkAdapter) GetVirtualMachine() (*VirtualMachine, error) {
+	cs, err := virtual_system.GetComputerSystem(vna.virtualNetworkAdapter)
+	if err != nil {
+		return nil, err
+	}
+	return NewVirtualMachine(cs)
+}
+
+func (vna *VirtualNetworkAdapter) update(virtualNetworkAdapter *network_adapter.VirtualNetworkAdapter) (err error) {
+	vna.virtualNetworkAdapter = virtualNetworkAdapter
+	vna.Name = virtualNetworkAdapter.ElementName
+	syntheticNetworkAdapter, err := network_adapter.NewSyntheticNetworkAdapterFromInstance(virtualNetworkAdapter.Instance)
+	if err != nil {
+		return
+	}
+	vna.StaticMacAddress = syntheticNetworkAdapter.StaticMacAddress
+	vna.MacAddress = syntheticNetworkAdapter.Address
+
+	ethernetPortAllocationSettingData, err := syntheticNetworkAdapter.GetEthernetPortAllocationSettingData()
+	if err != nil {
+		return
+	}
+	// Bandwidth setting data
+	ethernetSwitchPortBandwidthSettingData, err := ethernetPortAllocationSettingData.GetEthernetSwitchPortBandwidthSettingData()
+	if err != nil && !errors.Is(err, wmiext.NotFound) {
+		return
+	}
+	if ethernetSwitchPortBandwidthSettingData != nil {
+		vna.IsEnableBandwidth = true
+		vna.MaxBandwidth = float64(ethernetSwitchPortBandwidthSettingData.Limit) / 1000000
+		vna.MinBandwidth = float64(ethernetSwitchPortBandwidthSettingData.Reservation) / 1000000
+	}
+
+	// Vlan setting data
+	ethernetSwitchPortVlanSettingData, err := ethernetPortAllocationSettingData.GetEthernetSwitchPortVlanSettingData()
+	if err != nil && !errors.Is(err, wmiext.NotFound) {
+		return
+	}
+	if ethernetSwitchPortVlanSettingData != nil {
+		vna.IsEnableVlan = true
+		vna.VlanId = int(ethernetSwitchPortVlanSettingData.AccessVlanId)
+	}
+
+	configuration, err := vna.virtualNetworkAdapter.GetGuestNetworkAdapterConfiguration()
+	if err != nil {
+		return
+	}
+	vna.IPAddress = configuration.IPAddresses
+	vna.DefaultGateway = configuration.DefaultGateways
+	vna.SubnetMask = configuration.Subnets
+	vna.DNSServers = configuration.DNSServers
+	return nil
 }
 
 func NewVirtualNetworkAdapter(networkAdapter *network_adapter.VirtualNetworkAdapter) (*VirtualNetworkAdapter, error) {
@@ -36,7 +91,7 @@ func NewVirtualNetworkAdapter(networkAdapter *network_adapter.VirtualNetworkAdap
 }
 
 func (vm *VirtualMachine) FirstVirtualNetworkAdapterByName(name string) (*VirtualNetworkAdapter, error) {
-	virtualSystemSettingData, err := vm.GetVirtualSystemSettingData()
+	virtualSystemSettingData, err := vm.computerSystem.GetVirtualSystemSettingData()
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +109,7 @@ func (vm *VirtualMachine) FirstVirtualNetworkAdapterByName(name string) (*Virtua
 		if err != nil {
 			return nil, err
 		}
-		if vna.ElementName != name {
+		if vna.virtualNetworkAdapter.ElementName != name {
 			continue
 		}
 		return vna, nil
@@ -71,7 +126,7 @@ func (vm *VirtualMachine) MustFirstVirtualNetworkAdapterByName(name string) *Vir
 }
 
 func (vm *VirtualMachine) FindVirtualNetworkAdapterByName(name string) ([]*VirtualNetworkAdapter, error) {
-	virtualSystemSettingData, err := vm.GetVirtualSystemSettingData()
+	virtualSystemSettingData, err := vm.computerSystem.GetVirtualSystemSettingData()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +145,7 @@ func (vm *VirtualMachine) FindVirtualNetworkAdapterByName(name string) ([]*Virtu
 		if err != nil {
 			return nil, err
 		}
-		if vna.ElementName != name {
+		if vna.virtualNetworkAdapter.ElementName != name {
 			continue
 		}
 		virtualNetworkAdapters = append(virtualNetworkAdapters, vna)
@@ -98,38 +153,16 @@ func (vm *VirtualMachine) FindVirtualNetworkAdapterByName(name string) ([]*Virtu
 	return virtualNetworkAdapters, nil
 }
 
-func (vna *VirtualNetworkAdapter) GetVirtualMachine() (*VirtualMachine, error) {
-	cs, err := virtual_system.GetComputerSystem(vna.VirtualNetworkAdapter)
-	if err != nil {
-		return nil, err
-	}
-	return NewVirtualMachine(cs)
-}
-
-func (vna *VirtualNetworkAdapter) update(syntheticNetworkAdapter *network_adapter.VirtualNetworkAdapter) (err error) {
-	vna.VirtualNetworkAdapter = syntheticNetworkAdapter
-	vna.Name = syntheticNetworkAdapter.ElementName
-	configuration, err := vna.GetGuestNetworkAdapterConfiguration()
-	if err != nil {
-		return
-	}
-	vna.IPAddress = configuration.IPAddresses
-	vna.DefaultGateway = configuration.DefaultGateways
-	vna.SubnetMask = configuration.Subnets
-	vna.DNSServers = configuration.DNSServers
-	return nil
-}
-
 func (vm *VirtualMachine) AddVirtualNetworkAdapter(vna *VirtualNetworkAdapter) (err error) {
 	var syntheticNetworkAdapter *network_adapter.VirtualNetworkAdapter
-	if syntheticNetworkAdapter, err = vm.NewSyntheticNetworkAdapter(vna.Name); err != nil {
+	if syntheticNetworkAdapter, err = vm.computerSystem.NewSyntheticNetworkAdapter(vna.Name); err != nil {
 		return
 	}
 	vmms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return err
 	}
-	resourceSettings, err := vmms.AddResourceSettings(vm.MustGetVirtualSystemSettingData(), []string{syntheticNetworkAdapter.GetCimText()})
+	resourceSettings, err := vmms.AddResourceSettings(vm.computerSystem.MustGetVirtualSystemSettingData(), []string{syntheticNetworkAdapter.GetCimText()})
 	if err != nil {
 		return
 	}
@@ -140,7 +173,7 @@ func (vm *VirtualMachine) AddVirtualNetworkAdapter(vna *VirtualNetworkAdapter) (
 		return
 	}
 
-	vna.VirtualNetworkAdapter = syntheticNetworkAdapter
+	vna.virtualNetworkAdapter = syntheticNetworkAdapter
 
 	if vna.IsEnableBandwidth {
 		if err = vna.SetBandwidthOut(vna.MaxBandwidth, vna.MinBandwidth); err != nil {
@@ -155,17 +188,17 @@ func (vm *VirtualMachine) AddVirtualNetworkAdapter(vna *VirtualNetworkAdapter) (
 }
 
 func (vna *VirtualNetworkAdapter) Detach() error {
-	if vna.VirtualNetworkAdapter == nil {
+	if vna.virtualNetworkAdapter == nil {
 		return errors.New("vna not attached")
 	}
 	vmms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return err
 	}
-	if err = vmms.RemoveResourceSettings([]string{vna.VirtualNetworkAdapter.Path()}); err != nil {
+	if err = vmms.RemoveResourceSettings([]string{vna.virtualNetworkAdapter.Path()}); err != nil {
 		return err
 	}
-	vna.VirtualNetworkAdapter = nil
+	vna.virtualNetworkAdapter = nil
 	return nil
 }
 
@@ -182,6 +215,31 @@ func (vm *VirtualMachine) RemoveVirtualNetworkAdapter(name string) (err error) {
 	return
 }
 
+func (vna *VirtualNetworkAdapter) DisabledBandwidthLimit() (err error) {
+	vsms, err := virtual_system.LocalVirtualSystemManagementService()
+	if err != nil {
+		return
+	}
+	// Get the virtual network adapter
+	syntheticAdapter := vna.virtualNetworkAdapter
+	ethernetPortAllocationSettingData, err := syntheticAdapter.GetEthernetPortAllocationSettingData()
+	if err != nil {
+		return err
+	}
+
+	ethernetSwitchPortBandwidthSettingData, err := ethernetPortAllocationSettingData.GetEthernetSwitchPortBandwidthSettingData()
+	if err != nil {
+		if errors.Is(err, wmiext.NotFound) {
+			return nil
+		}
+		return
+	}
+
+	err = vsms.RemoveFeatureSettings([]string{ethernetSwitchPortBandwidthSettingData.Path()})
+
+	return
+}
+
 // SetBandwidthOut sets the bandwidth of the virtual network adapter
 // limitBandwidthMbps: The maximum bandwidth in Mbps, -1 means unlimited
 // reserveBandwidthMbps: The minimum bandwidth in Mbps -1 means unlimited
@@ -192,12 +250,18 @@ func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBan
 	if reserveBandwidthMbps < 0 {
 		reserveBandwidthMbps = 0
 	}
+	if limitBandwidthMbps <= reserveBandwidthMbps {
+		return wmiext.NotSupported
+	}
+	if limitBandwidthMbps == 0 && reserveBandwidthMbps == 0 {
+		return wmiext.NotSupported
+	}
 	vsms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return err
 	}
 	// Get the virtual network adapter
-	syntheticAdapter := vna.VirtualNetworkAdapter
+	syntheticAdapter := vna.virtualNetworkAdapter
 	ethernetPortAllocationSettingData, err := syntheticAdapter.GetEthernetPortAllocationSettingData()
 	// If the virtual network adapter does not contain an ethernet port allocation setting data, create a new one
 	virtualMachine, err := vna.GetVirtualMachine()
@@ -205,7 +269,7 @@ func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBan
 		return err
 	}
 	if ethernetPortAllocationSettingData == nil {
-		if ethernetPortAllocationSettingData, err = vsms.AddVirtualEthernetConnection(virtualMachine.ComputerSystem, syntheticAdapter); err != nil {
+		if ethernetPortAllocationSettingData, err = vsms.AddVirtualEthernetConnection(virtualMachine.computerSystem, syntheticAdapter); err != nil {
 			return
 		}
 		if ethernetPortAllocationSettingData == nil {
@@ -217,21 +281,21 @@ func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBan
 	if err != nil && !errors.Is(err, wmiext.NotFound) {
 		return err
 	}
-	defer ethernetSwitchPortBandwidthSettingData.Close()
+	//defer ethernetSwitchPortBandwidthSettingData.Close()
 
 	modifyBandwidthSettingData := func() error {
 		// Set the maximum bandwidth of the virtual network adapter
-		if err := ethernetSwitchPortBandwidthSettingData.SetLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		if err = ethernetSwitchPortBandwidthSettingData.SetLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
 			return err
 		}
 		// Set the minimum bandwidth of the virtual network adapter
-		if err := ethernetSwitchPortBandwidthSettingData.SetReservation(uint64(reserveBandwidthMbps * 100000)); err != nil {
+		if err = ethernetSwitchPortBandwidthSettingData.SetReservation(uint64(reserveBandwidthMbps * 1000000)); err != nil {
 			return err
 		}
-		//if err = bandwidthSettingData.SetBurstLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		//if err = ethernetSwitchPortBandwidthSettingData.SetBurstLimit(uint64(limitBandwidthMbps * 1000000)); err != nil {
 		//	return err
 		//}
-		//if err = bandwidthSettingData.SetBurstSize(uint64(limitBandwidthMbps * 1000000)); err != nil {
+		//if err = ethernetSwitchPortBandwidthSettingData.SetBurstSize(uint64(limitBandwidthMbps * 1000000)); err != nil {
 		//	return err
 		//}
 		return nil
@@ -248,12 +312,17 @@ func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBan
 		}
 		_, err = vsms.AddFeatureSettings(ethernetPortAllocationSettingData.Path(), []string{ethernetSwitchPortBandwidthSettingData.GetCimText()})
 	} else {
-		// Modify the existing virtual network adapter bandwidth setting data
+		// ModifySpec the existing virtual network adapter bandwidth setting data
 		if err = modifyBandwidthSettingData(); err != nil {
 			return
 		}
-		_, err = vsms.ModifyResourceSettings([]string{ethernetSwitchPortBandwidthSettingData.GetCimText()})
+		_, err = vsms.ModifyFeatureSettings([]string{ethernetSwitchPortBandwidthSettingData.GetCimText()})
 	}
+
+	// Manually update the bandwidth setting data
+	vna.MaxBandwidth = limitBandwidthMbps
+	vna.MinBandwidth = reserveBandwidthMbps
+
 	return
 }
 
@@ -279,7 +348,7 @@ func (vna *VirtualNetworkAdapter) ConnectByName(vswName string) (bool, error) {
 	if vsw, err = networking.FirstVirtualEthernetSwitchByName(vsms.Session, vswName); err != nil {
 		return false, err
 	}
-	if err = vsms.ConnectAdapterToVirtualSwitch(virtualMachine.ComputerSystem, vnaName, vsw); err != nil {
+	if err = vsms.ConnectAdapterToVirtualSwitch(virtualMachine.computerSystem, vnaName, vsw); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -303,7 +372,7 @@ func (vna *VirtualNetworkAdapter) ModifyConfiguration(
 	var guestNetworkAdapterConfiguration *network_adapter.GuestNetworkAdapterConfiguration
 	// Get the network adapter guest guestNetworkAdapterConfiguration,
 	// which is provided by the hyper-v and supports modifying the network adapter guestNetworkAdapterConfiguration without connecting to the virtual machine
-	if guestNetworkAdapterConfiguration, err = vna.GetGuestNetworkAdapterConfiguration(); err != nil {
+	if guestNetworkAdapterConfiguration, err = vna.virtualNetworkAdapter.GetGuestNetworkAdapterConfiguration(); err != nil {
 		return
 	}
 	if err = guestNetworkAdapterConfiguration.SetDHCPEnabled(false); err != nil {
@@ -333,7 +402,7 @@ func (vna *VirtualNetworkAdapter) ModifyConfiguration(
 	if err != nil {
 		return
 	}
-	err = vmms.SetGuestNetworkAdapterConfiguration(virtualMachine.ComputerSystem, guestNetworkAdapterConfiguration)
+	err = vmms.SetGuestNetworkAdapterConfiguration(virtualMachine.computerSystem, guestNetworkAdapterConfiguration)
 	return
 }
 

@@ -1,168 +1,231 @@
 package hypervctl
 
 import (
+	"errors"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 var (
-	vswName              string
-	vsw                  *VirtualSwitch
-	findVsw              *VirtualSwitch
+	virtualSwitchNames = struct {
+		Private        string
+		Internal       string
+		ExternalBridge string
+		ExternalDirect string
+	}{
+		Private:        "test_hyperv_vsw_private",
+		Internal:       "test_hyperv_vsw_internal",
+		ExternalBridge: "test_hyperv_vsw_bridge",
+		ExternalDirect: "test_hyperv_vsw_external",
+	}
+
+	currentVirtualSwitchName string
+
+	virtualSwitch        *VirtualSwitch
+	findVirtualSwitch    *VirtualSwitch
 	virtualSwitchType    VirtualSwitchType
-	networkInterfaceName string = "Realtek PCIe GbE Family Controller"
+	networkInterfaceName = "Realtek PCIe GbE Family Controller"
 )
 
+func TestCreatePrivateVirtualSwitch(t *testing.T) {
+	// TestCreatePrivateVirtualSwitch
+	t.Log("TestCreatePrivateVirtualSwitch")
+	currentVirtualSwitchName = virtualSwitchNames.Private
+
+	if virtualSwitch, err = CreateVirtualSwitch(currentVirtualSwitchName, VirtualSwitchTypePrivate, nil); err != nil {
+		t.Fatalf("CreatePrivateVirtualSwitch failed: %v", err)
+	} else {
+		t.Logf("Private virtual switch created: %v", virtualSwitch)
+	}
+	assert.NotNil(t, virtualSwitch)
+	assert.EqualExportedValues(t, &VirtualSwitch{
+		Name:            currentVirtualSwitchName,
+		Description:     "",
+		Type:            VirtualSwitchTypePrivate,
+		PhysicalAdapter: nil,
+	}, virtualSwitch)
+
+	if findVirtualSwitch, err = FirstVirtualSwitchByName(currentVirtualSwitchName); err != nil {
+		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
+	}
+	assert.EqualExportedValues(t, virtualSwitch, findVirtualSwitch)
+}
+
+func TestDeleteVirtualSwitchByName(t *testing.T) {
+	// TestDeleteVirtualMachineByName
+	t.Logf("TestDeleteVirtualMachineByName: name=%v", currentVirtualSwitchName)
+
+	if err = DeleteVirtualSwitchByName(currentVirtualSwitchName); err != nil {
+		t.Fatalf("DeleteVirtualSwitchByName failed: %v", err)
+	}
+
+	if findVirtualSwitch, err = FirstVirtualSwitchByName(currentVirtualSwitchName); err != nil && !errors.Is(err, wmiext.NotFound) {
+		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
+	}
+	assert.Nil(t, findVirtualSwitch)
+}
+
 func TestChangeVirtualSwitchTypeByName(t *testing.T) {
+	t.Log("TestChangeVirtualSwitchTypeByName")
 	var originalType VirtualSwitchType
 
-	if originalType, err = GetVirtualSwitchTypeByName(vswName); err != nil {
+	if originalType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
+	t.Logf("Original virtual switch type: %v", originalType)
 
-	if err = ChangeVirtualSwitchTypeByName(vswName, VirtualSwitchTypePrivate, nil); err != nil {
+	t.Logf("ChangeVirtualSwitch [%v] from [%v] to [%v]", currentVirtualSwitchName, originalType, VirtualSwitchTypePrivate)
+	if err = ChangeVirtualSwitchTypeByName(currentVirtualSwitchName, VirtualSwitchTypePrivate, nil); err != nil {
 		t.Fatalf("ChangeVirtualSwitchTypeByName failed: %v", err)
 	}
-	if virtualSwitchType, err = GetVirtualSwitchTypeByName(vswName); err != nil {
+	if virtualSwitchType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
 	assert.Equal(t, virtualSwitchType, VirtualSwitchTypePrivate)
 
-	if err = ChangeVirtualSwitchTypeByName(vswName, VirtualSwitchTypeInternal, nil); err != nil {
+	t.Logf("ChangeVirtualSwitch [%v] from [%v] to [%v]", currentVirtualSwitchName, VirtualSwitchTypePrivate, VirtualSwitchTypeInternal)
+	if err = ChangeVirtualSwitchTypeByName(currentVirtualSwitchName, VirtualSwitchTypeInternal, nil); err != nil {
 		t.Fatalf("ChangeVirtualSwitchTypeByName failed: %v", err)
 	}
-	if virtualSwitchType, err = GetVirtualSwitchTypeByName(vswName); err != nil {
+	if virtualSwitchType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
 	assert.Equal(t, virtualSwitchType, VirtualSwitchTypeInternal)
 
-	if err = ChangeVirtualSwitchTypeByName(vswName, VirtualSwitchTypeExternalBridge, &networkInterfaceName); err != nil {
+	t.Logf("ChangeVirtualSwitch [%v] from [%v] to [%v] with networkInterfaceName=%v", currentVirtualSwitchName, VirtualSwitchTypeInternal, VirtualSwitchTypeExternalBridge, networkInterfaceName)
+	if err = ChangeVirtualSwitchTypeByName(currentVirtualSwitchName, VirtualSwitchTypeExternalBridge, &networkInterfaceName); err != nil {
 		t.Fatalf("ChangeVirtualSwitchTypeByName failed: %v", err)
 	}
-	if virtualSwitchType, err = GetVirtualSwitchTypeByName(vswName); err != nil {
+	if virtualSwitchType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
 	assert.Equal(t, virtualSwitchType, VirtualSwitchTypeExternalBridge)
 
-	if err = ChangeVirtualSwitchTypeByName(vswName, VirtualSwitchTypeExternalDirect, &networkInterfaceName); err != nil {
+	t.Logf("ChangeVirtualSwitch [%v] from [%v] to [%v] with networkInterfaceName=%v", currentVirtualSwitchName, VirtualSwitchTypeExternalBridge, VirtualSwitchTypeExternalDirect, networkInterfaceName)
+	if err = ChangeVirtualSwitchTypeByName(currentVirtualSwitchName, VirtualSwitchTypeExternalDirect, &networkInterfaceName); err != nil {
 		t.Fatalf("ChangeVirtualSwitchTypeByName failed: %v", err)
 	}
-	virtualSwitchType, err = GetVirtualSwitchTypeByName(vswName)
+	virtualSwitchType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName)
 	if err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
 	assert.Equal(t, virtualSwitchType, VirtualSwitchTypeExternalDirect)
 
-	if err = ChangeVirtualSwitchTypeByName(vswName, originalType, &networkInterfaceName); err != nil {
+	t.Logf("ChangeVirtualSwitch [%v] to original type [%v]", currentVirtualSwitchName, originalType)
+	if err = ChangeVirtualSwitchTypeByName(currentVirtualSwitchName, originalType, &networkInterfaceName); err != nil {
 		t.Fatalf("ChangeVirtualSwitchTypeByName failed: %v", err)
 	}
-	if virtualSwitchType, err = GetVirtualSwitchTypeByName(vswName); err != nil {
+	if virtualSwitchType, err = GetVirtualSwitchTypeByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("GetVirtualSwitchTypeByName failed: %v", err)
 	}
 	assert.Equal(t, virtualSwitchType, originalType)
 }
 
-func TestPrivateVirtualSwitch(t *testing.T) {
-	// TestCreatePrivateVirtualSwitch
-	vswName = "test_hyperv_vsw_private"
+func TestCreateInternalVirtualSwitch(t *testing.T) {
+	// TestCreateInternalVirtualSwitch
+	t.Log("TestCreateInternalVirtualSwitch")
+	currentVirtualSwitchName = virtualSwitchNames.Internal
 
-	if vsw, err = CreateVirtualSwitch(vswName, VirtualSwitchTypePrivate, nil); err != nil {
-		t.Fatalf("CreatePrivateVirtualSwitch failed: %v", err)
+	if virtualSwitch, err = CreateVirtualSwitch(currentVirtualSwitchName, VirtualSwitchTypeInternal, nil); err != nil {
+		t.Fatalf("CreateInternalVirtualSwitch failed: %v", err)
 	} else {
-		t.Logf("Private virtual switch created: %v", vsw)
+		t.Logf("Internal virtual switch created: %v", virtualSwitch)
 	}
-	assert.NotNil(t, vsw)
+	assert.NotNil(t, virtualSwitch)
+	assert.EqualExportedValues(t, &VirtualSwitch{
+		Name:            currentVirtualSwitchName,
+		Description:     "",
+		Type:            VirtualSwitchTypeInternal,
+		PhysicalAdapter: nil,
+	}, virtualSwitch)
 
-	if findVsw, err = FirstVirtualSwitchByName(vswName); err != nil {
+	if findVirtualSwitch, err = FirstVirtualSwitchByName(currentVirtualSwitchName); err != nil {
 		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
 	}
-	assert.ObjectsAreEqualValues(vsw, findVsw)
+	assert.EqualExportedValues(t, virtualSwitch, findVirtualSwitch)
+}
 
-	t.Run("TestChangeVirtualSwitchTypeByName", TestChangeVirtualSwitchTypeByName)
+func TestCreateBridgeVirtualSwitch(t *testing.T) {
+	// TestCreateBridgeVirtualSwitch
+	t.Log("TestCreateBridgeVirtualSwitch")
+	currentVirtualSwitchName = virtualSwitchNames.ExternalBridge
 
-	// TestDeleteVirtualMachineByName
-	if err = DeleteVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("DeleteVirtualSwitchByName failed: %v", err)
+	if virtualSwitch, err = CreateVirtualSwitch(currentVirtualSwitchName, VirtualSwitchTypeExternalBridge, &networkInterfaceName); err != nil {
+		t.Fatalf("CreateBridgeVirtualSwitch failed: %v", err)
+	} else {
+		t.Logf("External bridge virtual switch created: %v", virtualSwitch)
 	}
-	assert.Equal(t, true, ok)
+	assert.NotNil(t, virtualSwitch)
+	assert.EqualExportedValues(t, &VirtualSwitch{
+		Name:            currentVirtualSwitchName,
+		Description:     "",
+		Type:            VirtualSwitchTypeExternalBridge,
+		PhysicalAdapter: &networkInterfaceName,
+	}, virtualSwitch)
+
+	if findVirtualSwitch, err = FirstVirtualSwitchByName(currentVirtualSwitchName); err != nil {
+		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
+	}
+	assert.EqualExportedValues(t, virtualSwitch, findVirtualSwitch)
+}
+
+func TestCreateExternalVirtualSwitch(t *testing.T) {
+	// TestCreateExternalVirtualSwitch
+	t.Log("TestCreateExternalVirtualSwitch")
+	currentVirtualSwitchName = virtualSwitchNames.ExternalDirect
+
+	if virtualSwitch, err = CreateVirtualSwitch(currentVirtualSwitchName, VirtualSwitchTypeExternalDirect, &networkInterfaceName); err != nil {
+		t.Fatalf("CreateExternalVirtualSwitch failed: %v", err)
+	} else {
+		t.Logf("External direct virtual switch created: %v", virtualSwitch)
+	}
+	assert.NotNil(t, virtualSwitch)
+	assert.EqualExportedValues(t, &VirtualSwitch{
+		Name:            currentVirtualSwitchName,
+		Description:     "",
+		Type:            VirtualSwitchTypeExternalDirect,
+		PhysicalAdapter: &networkInterfaceName,
+	}, virtualSwitch)
+
+	if findVirtualSwitch, err = FirstVirtualSwitchByName(currentVirtualSwitchName); err != nil {
+		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
+	}
+	assert.EqualExportedValues(t, virtualSwitch, findVirtualSwitch)
+}
+
+func TestPrivateVirtualSwitch(t *testing.T) {
+	// TestPrivateVirtualSwitch
+	t.Log("TestPrivateVirtualSwitch")
+	t.Run("TestCreatePrivateVirtualSwitch", TestCreatePrivateVirtualSwitch)
+	t.Run("TestChangeVirtualSwitchTypeByName", TestChangeVirtualSwitchTypeByName)
+	t.Run("TestDeleteVirtualSwitchByName", TestDeleteVirtualSwitchByName)
 }
 
 func TestInternalVirtualSwitch(t *testing.T) {
-	// TestCreatePrivateVirtualSwitch
-	vswName = "test_hyperv_vsw_internal"
-
-	if vsw, err = CreateVirtualSwitch(vswName, VirtualSwitchTypeInternal, nil); err != nil {
-		t.Fatalf("CreateInternalVirtualSwitch failed: %v", err)
-	} else {
-		t.Logf("Internal virtual switch created: %v", vsw)
-	}
-	assert.NotNil(t, vsw)
-
-	if findVsw, err = FirstVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
-	}
-	assert.ObjectsAreEqualValues(vsw, findVsw)
-
+	// TestInternalVirtualSwitch
+	t.Log("TestInternalVirtualSwitch")
+	t.Run("TestCreateInternalVirtualSwitch", TestCreateInternalVirtualSwitch)
 	t.Run("TestChangeVirtualSwitchTypeByName", TestChangeVirtualSwitchTypeByName)
-
-	// TestDeleteVirtualMachineByName
-	if err = DeleteVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("DeleteVirtualSwitchByName failed: %v", err)
-	}
-	assert.Equal(t, true, ok)
+	t.Run("TestDeleteVirtualSwitchByName", TestDeleteVirtualSwitchByName)
 }
 
 func TestBridgeVirtualSwitch(t *testing.T) {
-	// TestCreatePrivateVirtualSwitch
-	vswName = "test_hyperv_vsw_bridge"
-
-	if vsw, err = CreateVirtualSwitch(vswName, VirtualSwitchTypeExternalBridge, &networkInterfaceName); err != nil {
-		t.Fatalf("CreateBridgelVirtualSwitch failed: %v", err)
-	} else {
-		t.Logf("External bridge virtual switch created: %v", vsw)
-	}
-	assert.NotNil(t, vsw)
-
-	if findVsw, err = FirstVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
-	}
-	assert.ObjectsAreEqualValues(vsw, findVsw)
-
+	t.Log("TestBridgeVirtualSwitch")
+	t.Run("TestCreateBridgeVirtualSwitch", TestCreateBridgeVirtualSwitch)
 	t.Run("TestChangeVirtualSwitchTypeByName", TestChangeVirtualSwitchTypeByName)
-
-	// TestDeleteVirtualMachineByName
-	if err = DeleteVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("DeleteVirtualSwitchByName failed: %v", err)
-	}
-	assert.Equal(t, true, ok)
+	t.Run("TestDeleteVirtualSwitchByName", TestDeleteVirtualSwitchByName)
 }
 
 func TestExternalVirtualSwitch(t *testing.T) {
-	// TestCreatePrivateVirtualSwitch
-	vswName = "test_hyperv_vsw_external"
-
-	if vsw, err = CreateVirtualSwitch(vswName, VirtualSwitchTypeExternalDirect, &networkInterfaceName); err != nil {
-		t.Fatalf("CreateExternalVirtualSwitch failed: %v", err)
-	} else {
-		t.Logf("External direct virtual switch created: %v", vsw)
-	}
-	assert.NotNil(t, vsw)
-
-	if findVsw, err = FirstVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("FirstVirtualSwitchByName failed: %v", err)
-	}
-	assert.ObjectsAreEqualValues(vsw, findVsw)
-
+	// TestExternalVirtualSwitch
+	t.Log("TestExternalVirtualSwitch")
+	t.Run("TestCreateExternalVirtualSwitch", TestCreateExternalVirtualSwitch)
 	t.Run("TestChangeVirtualSwitchTypeByName", TestChangeVirtualSwitchTypeByName)
-
-	// TestDeleteVirtualMachineByName
-	if err = DeleteVirtualSwitchByName(vswName); err != nil {
-		t.Fatalf("DeleteVirtualSwitchByName failed: %v", err)
-	}
-	assert.Equal(t, true, ok)
+	t.Run("TestDeleteVirtualSwitchByName", TestDeleteVirtualSwitchByName)
 }
 
-func TestVSWIntegration(t *testing.T) {
+func TestVirtualSwitchIntegration(t *testing.T) {
 	t.Run("TestPrivateVirtualSwitch", TestPrivateVirtualSwitch)
 	t.Run("TestInternalVirtualSwitch", TestInternalVirtualSwitch)
 	t.Run("TestBridgeVirtualSwitch", TestBridgeVirtualSwitch)

@@ -208,7 +208,7 @@ func (vm *ComputerSystem) GetVirtualSystemSettingData() (*VirtualSystemSettingDa
 		}
 		return &virtualSystemSettingData, nil
 	}
-	return nil, errors.Wrapf(wmiext.NotFound, "VirtualSystemSettingData not found for ComputerSystem [%s]", vm.ElementName)
+	return nil, errors.Wrapf(wmiext.NotFound, "VirtualSystemSettingData not found for computerSystem [%s]", vm.ElementName)
 }
 
 func (vm *ComputerSystem) MustGetVirtualSystemSettingData() *VirtualSystemSettingData {

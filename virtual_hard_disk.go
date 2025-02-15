@@ -36,7 +36,7 @@ func fileSizeGB(path string) (sizeGB float64, err error) {
 	return float64(fileInfo.Size()) / (1024 * 1024 * 1024), nil
 }
 
-func checkVirtualHardDiskExistsByPath(path string) (exists bool) {
+func existsVirtualHardDiskByPath(path string) (exists bool) {
 	// 获取文件所在目录
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return false
@@ -76,7 +76,7 @@ func (vhd *VirtualHardDisk) Create() (err error) {
 	var (
 		mgmt *storage.ImageManagementService
 	)
-	if checkVirtualHardDiskExistsByPath(vhd.Path) {
+	if existsVirtualHardDiskByPath(vhd.Path) {
 		return errors.New("VirtualHardDisk exists")
 	}
 	if mgmt, err = storage.LocalImageManagementService(); err != nil {
@@ -120,14 +120,14 @@ func (vhd *VirtualHardDisk) AttachAsDataDisk(virtualMachine *VirtualMachine) (ok
 	if err != nil {
 		return false, err
 	}
-	if controllers, err = virtualMachine.GetSCSIControllers(); errors.Is(err, wmiext.NotFound) || (controllers == nil || len(controllers) == 0) {
-		if err = vmms.AddSCSIController(virtualMachine.ComputerSystem); err != nil {
+	if controllers, err = virtualMachine.computerSystem.GetSCSIControllers(); errors.Is(err, wmiext.NotFound) || (controllers == nil || len(controllers) == 0) {
+		if err = vmms.AddSCSIController(virtualMachine.computerSystem); err != nil {
 			return false, err
 		}
 	} else if err != nil {
 		return false, err
 	}
-	vhd.VirtualHardDisk, _, err = vmms.AttachVirtualHardDisk(virtualMachine.ComputerSystem, vhd.Path, virtual_system.VirtualHardDiskType_DATADISK_VIRTUALHARDDISK)
+	vhd.VirtualHardDisk, _, err = vmms.AttachVirtualHardDisk(virtualMachine.computerSystem, vhd.Path, virtual_system.VirtualHardDiskType_DATADISK_VIRTUALHARDDISK)
 	if err != nil {
 		return
 	}
@@ -140,7 +140,7 @@ func (vhd *VirtualHardDisk) AttachAsSystemDisk(virtualMachine *VirtualMachine) (
 	if err != nil {
 		return false, err
 	}
-	vhd.VirtualHardDisk, _, err = vmms.AttachVirtualHardDisk(virtualMachine.ComputerSystem, vhd.Path, virtual_system.VirtualHardDiskType_OS_VIRTUALHARDDISK)
+	vhd.VirtualHardDisk, _, err = vmms.AttachVirtualHardDisk(virtualMachine.computerSystem, vhd.Path, virtual_system.VirtualHardDiskType_OS_VIRTUALHARDDISK)
 	if err != nil {
 		return
 	}
@@ -176,7 +176,7 @@ func (vhd *VirtualHardDisk) Resize(newSizeGiB float64) (ok bool, err error) {
 }
 
 func GetVirtualHardDiskByPath(path string) (*VirtualHardDisk, error) {
-	if !checkVirtualHardDiskExistsByPath(path) {
+	if !existsVirtualHardDiskByPath(path) {
 		return nil, errors.New("vhd not exists")
 	}
 	var virtualHardDisk *disk.VirtualHardDisk
@@ -225,7 +225,7 @@ func CreateVirtualHardDisk(path string, sizeGiB float64) (vhd *VirtualHardDisk, 
 }
 
 func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {
-	if !checkVirtualHardDiskExistsByPath(path) {
+	if !existsVirtualHardDiskByPath(path) {
 		return false, errors.New("vhd not exists")
 	}
 	if err = os.RemoveAll(path); err != nil {
