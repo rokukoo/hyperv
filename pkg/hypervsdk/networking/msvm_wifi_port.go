@@ -86,5 +86,5 @@ func GetWiFiPort(con *wmiext.Service, ethernetName string) (*WiFiPort, error) {
 func ListEnabledWiFiPort(session *wmiext.Service) ([]*WiFiPort, error) {
 	var wiFiPorts []*WiFiPort
 	wquery := fmt.Sprintf("SELECT * FROM Msvm_WiFiPort WHERE EnabledState = 2")
-	return wiFiPorts, session.FindObjects(wquery, wiFiPorts)
+	return wiFiPorts, session.FindObjects(wquery, &wiFiPorts)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -230,4 +231,14 @@ func TestVirtualSwitchIntegration(t *testing.T) {
 	t.Run("TestInternalVirtualSwitch", TestInternalVirtualSwitch)
 	t.Run("TestBridgeVirtualSwitch", TestBridgeVirtualSwitch)
 	t.Run("TestExternalVirtualSwitch", TestExternalVirtualSwitch)
+}
+
+func TestListAvailablePhysicalNetworkAdapters(t *testing.T) {
+	t.Log("TestListAvailablePhysicalNetworkAdapters")
+	var networkAdapters []string
+	if networkAdapters, err = ListAvailablePhysicalNetworkAdapters(); err != nil {
+		t.Fatalf("ListAvailablePhysicalNetworkAdapters failed: %v", err)
+	}
+	t.Logf("Available physical network adapters: %s", strings.Join(networkAdapters, ","))
+	assert.NotEmpty(t, networkAdapters)
 }

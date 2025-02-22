@@ -90,5 +90,5 @@ func GetExternalEthernetPort(con *wmiext.Service, ethernetName string) (*Externa
 func ListEnabledExternalEthernetPort(session *wmiext.Service) ([]*ExternalEthernetPort, error) {
 	var extPorts []*ExternalEthernetPort
 	wquery := fmt.Sprintf("SELECT * FROM Msvm_ExternalEthernetPort WHERE EnabledState = 2")
-	return extPorts, session.FindObjects(wquery, extPorts)
+	return extPorts, session.FindObjects(wquery, &extPorts)
 }

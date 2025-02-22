@@ -81,7 +81,7 @@ func TestVirtualNetworkAdapter_SetBandwidthOut(t *testing.T) {
 			actualLimit := limit
 			actualReserve := reserve
 			t.Logf("SetBandwidthOut limit=%v reserve=%v", limit, reserve)
-			err = virtualNetworkAdapter.SetBandwidthOut(limit, reserve)
+			err = virtualNetworkAdapter.SetBandwidth(limit, reserve)
 			if limit < 0 {
 				actualLimit = 0
 			}
