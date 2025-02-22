@@ -176,7 +176,7 @@ func (vm *VirtualMachine) AddVirtualNetworkAdapter(vna *VirtualNetworkAdapter) (
 	vna.virtualNetworkAdapter = syntheticNetworkAdapter
 
 	if vna.IsEnableBandwidth {
-		if err = vna.SetBandwidthOut(vna.MaxBandwidth, vna.MinBandwidth); err != nil {
+		if err = vna.SetBandwidth(vna.MaxBandwidth, vna.MinBandwidth); err != nil {
 			return
 		}
 	}
@@ -215,7 +215,7 @@ func (vm *VirtualMachine) RemoveVirtualNetworkAdapter(name string) (err error) {
 	return
 }
 
-func (vna *VirtualNetworkAdapter) DisabledBandwidthLimit() (err error) {
+func (vna *VirtualNetworkAdapter) DisableBandwidthLimit() (err error) {
 	vsms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
 		return
@@ -240,10 +240,10 @@ func (vna *VirtualNetworkAdapter) DisabledBandwidthLimit() (err error) {
 	return
 }
 
-// SetBandwidthOut sets the bandwidth of the virtual network adapter
+// SetBandwidth sets the bandwidth of the virtual network adapter
 // limitBandwidthMbps: The maximum bandwidth in Mbps, -1 means unlimited
 // reserveBandwidthMbps: The minimum bandwidth in Mbps -1 means unlimited
-func (vna *VirtualNetworkAdapter) SetBandwidthOut(limitBandwidthMbps, reserveBandwidthMbps float64) (err error) {
+func (vna *VirtualNetworkAdapter) SetBandwidth(limitBandwidthMbps, reserveBandwidthMbps float64) (err error) {
 	if limitBandwidthMbps < 0 {
 		limitBandwidthMbps = 0
 	}

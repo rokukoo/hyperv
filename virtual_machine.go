@@ -127,7 +127,7 @@ func (vm *VirtualMachine) Create() (err error) {
 	if buildVM, err = builder.Build(); err != nil {
 		if errors.Unwrap(err).(*wmiext.JobError).ErrorCode == 32769 {
 			// 创建失败, 当前目录下已存在同名的虚拟机
-			return VirtualMachineAlreadyExists
+			return ErrorVirtualMachineAlreadyExists
 		}
 		return err
 	}

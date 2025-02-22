@@ -5,5 +5,5 @@ import (
 )
 
 var (
-	VirtualMachineAlreadyExists = errors.New("virtual machine already exists")
+	ErrorVirtualMachineAlreadyExists = errors.New("virtual machine already exists")
 )
