@@ -126,7 +126,10 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 		if err != nil {
 			return errors.Wrap(err, "failed to get active virtual ethernet switch setting data")
 		}
-		if len(resourceSettings) >= 0 {
+		// Make sure the resource settings are not empty
+		// and this only happens when the virtual switch does not have internal port allocation settings
+		// So this segment of code is possibly redundant
+		if len(resourceSettings) > 0 {
 			if _, err = vsms.AddResourceSettings(settingData, resourceSettings); err != nil {
 				return errors.Wrap(err, "failed to add allocation settings")
 			}
