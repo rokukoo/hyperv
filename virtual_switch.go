@@ -109,7 +109,7 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 		return nil
 	case VirtualSwitchTypeInternal:
 		// Change virtual switch to internal
-		var resourceSettings []*networking.EthernetPortAllocationSettingData
+		resourceSettings := []*networking.EthernetPortAllocationSettingData{}
 		_, err = virtualSwitch.GetInternalPortAllocSettings()
 		if err != nil {
 			if errors.Is(err, wmiext.NotFound) {
@@ -137,7 +137,7 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 		if adapter == nil {
 			return errors.New("adapter is required for external bridge")
 		}
-		var resourceSettings []*networking.EthernetPortAllocationSettingData
+		resourceSettings := []*networking.EthernetPortAllocationSettingData{}
 		_, err = virtualSwitch.GetInternalPortAllocSettings()
 		if err != nil {
 			if errors.Is(err, wmiext.NotFound) {
@@ -171,7 +171,7 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 		if adapter == nil {
 			return errors.New("adapter is required for external direct")
 		}
-		var resourceSettings []*networking.EthernetPortAllocationSettingData
+		resourceSettings := []*networking.EthernetPortAllocationSettingData{}
 		// Change virtual switch to private
 		if err = vsms.ClearInternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear internal port allocation setting data")
