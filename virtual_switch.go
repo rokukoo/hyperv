@@ -126,8 +126,10 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 		if err != nil {
 			return errors.Wrap(err, "failed to get active virtual ethernet switch setting data")
 		}
-		if _, err = vsms.AddResourceSettings(settingData, resourceSettings); err != nil {
-			return errors.Wrap(err, "failed to add allocation settings")
+		if len(resourceSettings) >= 0 {
+			if _, err = vsms.AddResourceSettings(settingData, resourceSettings); err != nil {
+				return errors.Wrap(err, "failed to add allocation settings")
+			}
 		}
 		if err = vsms.ClearExternalPortAllocationSettingData(virtualSwitch); err != nil {
 			return errors.Wrap(err, "failed to clear external port allocation setting data")
