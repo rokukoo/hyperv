@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/duke-git/lancet/v2 v2.3.4
 	github.com/google/uuid v1.6.0
-	github.com/microsoft/wmi v0.25.2
+	//github.com/microsoft/wmi v0.25.2
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 )
