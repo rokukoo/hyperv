@@ -1,7 +1,7 @@
 package switch_extension
 
 import (
-	"github.com/microsoft/wmi/pkg/errors"
+	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"time"
 )
@@ -70,5 +70,5 @@ func (iese *InstalledEthernetSwitchExtension) GetFeatureCapabilityByName(name st
 		}
 	}
 
-	return nil, errors.Wrapf(errors.NotFound, "Unable to find Feature Capability [%s]", name)
+	return nil, errors.Wrapf(wmiext.NotFound, "Unable to find Feature Capability [%s]", name)
 }
