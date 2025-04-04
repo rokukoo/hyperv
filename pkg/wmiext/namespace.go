@@ -1,9 +1,7 @@
 package wmiext
 
-import "github.com/microsoft/wmi/pkg/constant"
-
-type WmiNamespace = string
-
 const (
-	VirtualizationV2 WmiNamespace = string(constant.Virtualization)
+	Virtualization = "root/virtualization/v2"
+	CimV2          = "root/cimv2"
+	StandardCimV2  = "root/standardcimv2"
 )

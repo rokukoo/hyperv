@@ -19,4 +19,6 @@ var (
 	InvalidFilter  error = errors.New("Invalid Filter")
 	NotImplemented error = errors.New("Not Implemented")
 	Unknown        error = errors.New("Unknown Reason")
+
+	PermissionDenied error = errors.New("Permission Denied")
 )

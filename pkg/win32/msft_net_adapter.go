@@ -1,7 +1,8 @@
-package hypervsdk
+package win32
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
@@ -98,8 +99,97 @@ type NetworkAdapter struct {
 	*wmiext.Instance
 }
 
+func (na *NetworkAdapter) Configure(
+	ipAddress []string,
+	subnetMask []string,
+	gateway []string,
+	dnsServer []string,
+) (err error) {
+	con, err := wmiext.NewLocalService(wmiext.CimV2)
+	if err != nil {
+		return
+	}
+	wquery := fmt.Sprintf("SELECT * FROM Win32_NetworkAdapterConfiguration WHERE InterfaceIndex = %d", na.InterfaceIndex)
+	netAdapterConfiguration, err := con.FindFirstInstance(wquery)
+	if err != nil {
+		return
+	}
+
+	var returnValue int32
+	if err = netAdapterConfiguration.Method("EnableStatic").
+		In("IPAddress", ipAddress).
+		In("SubnetMask", subnetMask).
+		Execute().
+		Out("ReturnValue", &returnValue).
+		End(); err != nil {
+		return
+	}
+
+	if returnValue == -2147024891 {
+		return wmiext.PermissionDenied
+	}
+
+	if returnValue != 0 {
+		return fmt.Errorf("failed to enable static ip, return value: %d", returnValue)
+	}
+
+	// 设置 网关
+	gatewayCostMetrics := []uint16{1} // 网关跃点数
+	if err = netAdapterConfiguration.Method("SetGateways").
+		In("DefaultIPGateway", gateway).
+		In("GatewayCostMetric", gatewayCostMetrics).
+		Execute().
+		Out("ReturnValue", &returnValue).
+		End(); err != nil {
+		return fmt.Errorf("failed to set gateway, return value: %d", returnValue)
+	}
+
+	if returnValue != 0 {
+		return fmt.Errorf("failed to set gateway, return value: %d", returnValue)
+	}
+
+	// 设置 DNS
+	if err = netAdapterConfiguration.Method("SetDNSServerSearchOrder").
+		In("DNSServerSearchOrder", dnsServer).
+		Execute().
+		Out("ReturnValue", &returnValue).
+		End(); err != nil {
+		return fmt.Errorf("failed to set dnsServer, return value: %d", returnValue)
+	}
+
+	if returnValue != 0 {
+		return errors.New("failed to set dnsServer")
+	}
+
+	return nil
+}
+
+func ListPhysicalNetAdapter() (adapters []NetworkAdapter, err error) {
+	con, err := wmiext.NewLocalService(wmiext.StandardCimV2)
+	if err != nil {
+		return nil, err
+	}
+	wquery := "SELECT * FROM MSFT_NetAdapter WHERE Virtual = false"
+	if err = con.FindObjects(wquery, &adapters); err != nil {
+		return nil, err
+	}
+	return adapters, nil
+}
+
+func ListNetworkAdapters() (adapters []NetworkAdapter, err error) {
+	con, err := wmiext.NewLocalService(wmiext.StandardCimV2)
+	if err != nil {
+		return nil, err
+	}
+	wquery := "SELECT * FROM MSFT_NetAdapter"
+	if err = con.FindObjects(wquery, &adapters); err != nil {
+		return nil, err
+	}
+	return adapters, nil
+}
+
 func GetNetworkAdapterByName(name string) (adapter *NetworkAdapter, err error) {
-	con, err := wmiext.NewLocalService(wmiext.StadardCimV2)
+	con, err := wmiext.NewLocalService(wmiext.StandardCimV2)
 	if err != nil {
 		return nil, err
 	}
@@ -109,11 +199,11 @@ func GetNetworkAdapterByName(name string) (adapter *NetworkAdapter, err error) {
 }
 
 func GetNetworkAdapterByDescription(description string) (adapter *NetworkAdapter, err error) {
-	con, err := wmiext.NewLocalService(wmiext.StadardCimV2)
+	con, err := wmiext.NewLocalService(wmiext.StandardCimV2)
 	if err != nil {
 		return nil, err
 	}
 	netadapter := &NetworkAdapter{}
-	wquery := fmt.Sprintf("SELECT * FROM MSFT_NetAdapter WHERE Description = '%s'", description)
+	wquery := fmt.Sprintf("SELECT * FROM MSFT_NetAdapter WHERE InterfaceDescription = '%s'", description)
 	return netadapter, con.FindFirstObject(wquery, netadapter)
 }
