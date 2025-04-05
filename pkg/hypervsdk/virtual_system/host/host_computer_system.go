@@ -2,7 +2,7 @@ package host
 
 import (
 	"fmt"
-	"github.com/microsoft/wmi/pkg/errors"
+	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/switch_extension"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
@@ -56,7 +56,7 @@ func (hc *HostComputerSystem) GetFeatureCapability(featureName string) (*switch_
 	for _, ext := range installedEthernetSwitchExtensions {
 		fc, err := ext.GetFeatureCapabilityByName(featureName)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if errors.Is(err, wmiext.NotFound) {
 				continue
 			}
 			return nil, err
@@ -65,7 +65,7 @@ func (hc *HostComputerSystem) GetFeatureCapability(featureName string) (*switch_
 		return fc, nil
 	}
 
-	return nil, errors.Wrapf(errors.NotFound, "FeatureCapability [%s]", featureName)
+	return nil, errors.Wrapf(wmiext.NotFound, "FeatureCapability [%s]", featureName)
 }
 
 func (hc *HostComputerSystem) GetDefaultPortSettingData(featureName, className string) (*wmiext.Instance, error) {
