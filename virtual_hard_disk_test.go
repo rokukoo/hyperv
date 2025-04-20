@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"log"
 	"testing"
 )
 
@@ -38,6 +39,23 @@ func TestVirtualHardDiskIntegration(t *testing.T) {
 	t.Log("TestVirtualHardDiskIntegration")
 	t.Run("TestOsVirtualHardDisk", TestOsVirtualHardDisk)
 	t.Run("TestDataVirtualHardDisk", TestDataVirtualHardDisk)
+}
+
+func TestVirtualMachine_GetVirtualHardDisks(t *testing.T) {
+	t.Log("TestVirtualMachine_GetVirtualHardDisks")
+	var virtualHardDisks []*VirtualHardDisk
+	findVirtualMachine, err = FirstVirtualMachineByName("iECcequjDNcz1MTW")
+	if err != nil {
+		t.Fatalf("FirstVirtualMachineByName failed: %v", err)
+	}
+	virtualHardDisks, err = findVirtualMachine.GetVirtualHardDisks()
+	if err != nil {
+		t.Fatalf("GetVirtualHardDisks failed: %v", err)
+	}
+	for _, vhd := range virtualHardDisks {
+		assert.NotNil(t, vhd)
+		log.Printf("Attached Virtual Hard Disk: %s, Type: %d, SizeGB: %.2f/%.2f", vhd.Name, vhd.Type, vhd.UsedSizeGB, vhd.TotalSizeGB)
+	}
 }
 
 func TestOsVirtualHardDisk(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/processor"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/allocation"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"time"
 )
@@ -83,6 +84,25 @@ type VirtualSystemSettingData struct {
 
 func (vssd *VirtualSystemSettingData) Path() string {
 	return vssd.S__PATH
+}
+
+func (vssd *VirtualSystemSettingData) GetStorageAllocationSettingData() (col []*allocation.StorageAllocationSettingData, err error) {
+	var (
+		resourceAllocationSettingData *allocation.StorageAllocationSettingData
+	)
+	resourceAllocationSettingDatas, err := vssd.GetAllRelated("Msvm_StorageAllocationSettingData")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, resourceAllocationSettingDataInst := range resourceAllocationSettingDatas {
+		resourceAllocationSettingData = &allocation.StorageAllocationSettingData{}
+		if err = resourceAllocationSettingDataInst.GetAll(resourceAllocationSettingData); err != nil {
+			return
+		}
+		col = append(col, resourceAllocationSettingData)
+	}
+	return
 }
 
 func (vssd *VirtualSystemSettingData) getResourceAllocationSettingData(rtype resource.ResourceAllocationSettingData_ResourceType) (col []*resource.ResourceAllocationSettingData, err error) {

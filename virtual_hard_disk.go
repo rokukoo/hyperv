@@ -11,14 +11,22 @@ import (
 	"path/filepath"
 )
 
+type VirtualHardDiskType = int
+
+const (
+	VirtualHardDiskTypeSystem = iota
+	VirtualHardDiskTypeData
+)
+
 // VirtualHardDisk
 // https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/msvm-virtualharddisksettingdata
 type VirtualHardDisk struct {
-	Name        string  `json:"name"`
-	TotalSizeGB float64 `json:"total_size"`
-	UsedSizeGB  float64 `json:"used_size"`
-	Path        string  `json:"path"`
-	Attached    bool    `json:"attached"`
+	Name        string              `json:"name"`
+	Type        VirtualHardDiskType `json:"type"`
+	TotalSizeGB float64             `json:"total_size"`
+	UsedSizeGB  float64             `json:"used_size"`
+	Path        string              `json:"path"`
+	Attached    bool                `json:"attached"`
 	*disk.VirtualHardDisk
 }
 
@@ -70,6 +78,43 @@ func (vhd *VirtualHardDisk) Detach() (err error) {
 	vhd.VirtualHardDisk = nil
 	vhd.Attached = false
 	return nil
+}
+
+func (vm *VirtualMachine) GetVirtualHardDisks() ([]*VirtualHardDisk, error) {
+	var virtualHardDisks []*VirtualHardDisk
+	settingData, err := vm.computerSystem.GetVirtualSystemSettingData()
+	if err != nil {
+		return nil, err
+	}
+	storageAllocationSettingDatas, err := settingData.GetStorageAllocationSettingData()
+	if err != nil {
+		return nil, err
+	}
+	for _, storageAllocationSettingData := range storageAllocationSettingDatas {
+		hardDisk := disk.VirtualHardDisk{StorageAllocationSettingData: storageAllocationSettingData}
+		path := hardDisk.HostResource[0]
+		virtualHardDisk, err := GetVirtualHardDiskByPath(path)
+		if err != nil {
+			return nil, err
+		}
+		drive, err := hardDisk.GetDrive()
+		if err != nil {
+			return nil, err
+		}
+		controller, err := drive.GetParenObject()
+		if err != nil {
+			return nil, err
+		}
+		if controller.ResourceType == uint16(resource.ResourcePool_ResourceType_IDE_Controller) {
+			virtualHardDisk.Type = VirtualHardDiskTypeSystem
+		} else if controller.ResourceType == uint16(resource.ResourcePool_ResourceType_Parallel_SCSI_HBA) {
+			virtualHardDisk.Type = VirtualHardDiskTypeData
+		} else {
+			return nil, errors.New("unknown controller type")
+		}
+		virtualHardDisks = append(virtualHardDisks, virtualHardDisk)
+	}
+	return virtualHardDisks, nil
 }
 
 func (vhd *VirtualHardDisk) Create() (err error) {

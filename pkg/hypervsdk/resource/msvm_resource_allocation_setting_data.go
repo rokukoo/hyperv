@@ -79,6 +79,19 @@ func (rasd *ResourceAllocationSettingData) SetParent(parent string) error {
 	return rasd.Put("Parent", parent)
 }
 
+func (rasd *ResourceAllocationSettingData) GetParent() string {
+	return rasd.Parent
+}
+
+func (rasd *ResourceAllocationSettingData) GetParenObject() (*ResourceAllocationSettingData, error) {
+	parentPath := rasd.GetParent()
+	if parentPath == "" {
+		return nil, wmiext.NotFound
+	}
+	resourceAllocationSettingData := &ResourceAllocationSettingData{}
+	return resourceAllocationSettingData, rasd.GetService().GetObjectAsObject(parentPath, resourceAllocationSettingData)
+}
+
 func (rasd *ResourceAllocationSettingData) SetAddressOnParent(addressOnParent string) error {
 	rasd.AddressOnParent = addressOnParent
 	return rasd.Put("AddressOnParent", addressOnParent)
