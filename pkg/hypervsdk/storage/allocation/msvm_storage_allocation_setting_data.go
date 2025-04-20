@@ -1,6 +1,9 @@
 package allocation
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import (
+	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hypervctl/pkg/wmiext"
+)
 
 const (
 	Msvm_StorageAllocationSettingData = "Msvm_StorageAllocationSettingData "
@@ -67,4 +70,14 @@ func (s *StorageAllocationSettingData) SetParent(parent string) (err error) {
 func (s *StorageAllocationSettingData) SetHostResource(hostResource []string) (err error) {
 	s.HostResource = hostResource
 	return s.Put("HostResource", hostResource)
+}
+
+func (s *StorageAllocationSettingData) GetParent() string {
+	return s.Parent
+}
+
+func (s *StorageAllocationSettingData) GetParenObject() (*resource.ResourceAllocationSettingData, error) {
+	parentPath := s.GetParent()
+	resourceAllocationSettingData := &resource.ResourceAllocationSettingData{}
+	return resourceAllocationSettingData, s.GetService().GetObjectAsObject(parentPath, resourceAllocationSettingData)
 }

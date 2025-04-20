@@ -311,7 +311,8 @@ func (i *Instance) GetCimText() string {
 func (i *Instance) GetAll(target interface{}) error {
 	elem := reflect.ValueOf(target)
 	if elem.Kind() != reflect.Ptr || elem.IsNil() {
-		return errors.New("invalid destination type for mapping a WMI instance to an object")
+		return errors.New("destination is nil while target is a pointer")
+		//return errors.New("invalid destination type for mapping a WMI instance to an object")
 	}
 
 	// deref pointer

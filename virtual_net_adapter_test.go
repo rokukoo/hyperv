@@ -62,15 +62,47 @@ func TestVirtualNetworkAdapter_DisConnect(t *testing.T) {
 	t.Logf("Virtual network adapter disconnected successfully")
 }
 
-//func TestVirtualNetworkAdapter_SetBandwidthOut(t *testing.T) {
-//	if virtualNetworkAdapter, err = FirstVirtualNetworkAdapterByName(virtualNetworkAdapterName); err != nil {
-//		t.Fatalf("FirstVirtualNetworkAdapterByName failed: %v", err)
-//	}
-//	err = virtualNetworkAdapter.SetBandwidthOut(100, 0)
-//	if err != nil {
-//		t.Fatalf("SetBandwidthOut failed: %v", err)
-//	}
-//}
+func TestVirtualMachine_GetVirtualNetworkAdapters(t *testing.T) {
+	t.Log("TestVirtualMachine_GetVirtualNetworkAdapters")
+	var virtualNetworkAdapters []*VirtualNetworkAdapter
+	findVirtualMachine, err = FirstVirtualMachineByName("iECcequjDNcz1MTW")
+	if err != nil {
+		t.Fatalf("FirstVirtualMachineByName failed: %v", err)
+	}
+	virtualNetworkAdapters, err = findVirtualMachine.GetVirtualNetworkAdapters()
+	if err != nil {
+		t.Fatalf("GetVirtualNetworkAdapters failed: %v", err)
+	}
+	t.Logf("Virtual network adapters: %d", len(virtualNetworkAdapters))
+	for _, virtualNetworkAdapter = range virtualNetworkAdapters {
+		t.Logf(
+			"Virtual network adapter: %s, MacAddress=%s",
+			virtualNetworkAdapter.Name,
+			virtualNetworkAdapter.MacAddress,
+		)
+		virtualSwitch, err = virtualNetworkAdapter.GetVirtualSwitch()
+		if err != nil {
+			if !errors.Is(err, ErrorNotConnected) {
+				t.Fatalf("GetVirtualSwitch failed: %v", err)
+			} else {
+				t.Logf("  ├── Connection: Not connected")
+			}
+		} else {
+			t.Logf("  ├── Connection: VritualSwitch: %s", virtualSwitch.Name)
+		}
+		t.Logf("  ├── NetworkConfiguratuon: IPAddress=%s, DefaultGateway=%v, DNSServers=%s",
+			virtualNetworkAdapter.IPAddress,
+			virtualNetworkAdapter.DefaultGateway,
+			virtualNetworkAdapter.DNSServers)
+		t.Logf("  ├── BandwidthConfiguratuon: IsEnableBandwidth=%v, MaxBandwidth=%v, MinBandwidth=%v",
+			virtualNetworkAdapter.IsEnableBandwidth,
+			virtualNetworkAdapter.MaxBandwidth,
+			virtualNetworkAdapter.MinBandwidth)
+		t.Logf("  └── VLan: IsEnable=%v, VlanId=%v",
+			virtualNetworkAdapter.IsEnableVlan,
+			virtualNetworkAdapter.VlanId)
+	}
+}
 
 func TestVirtualNetworkAdapter_SetBandwidthOut(t *testing.T) {
 	if virtualNetworkAdapter, err = FirstVirtualNetworkAdapterByName(virtualNetworkAdapterName); err != nil {

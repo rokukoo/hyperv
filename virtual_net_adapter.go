@@ -31,6 +31,26 @@ type VirtualNetworkAdapter struct {
 	virtualNetworkAdapter *network_adapter.VirtualNetworkAdapter
 }
 
+func (vm *VirtualMachine) GetVirtualNetworkAdapters() ([]*VirtualNetworkAdapter, error) {
+	var virtualNetworkAdapters []*VirtualNetworkAdapter
+	virtualSystemSettingData, err := vm.computerSystem.GetVirtualSystemSettingData()
+	if err != nil {
+		return nil, err
+	}
+	syntheticVirtualNetworkAdapters, err := virtualSystemSettingData.GetSyntheticVirtualNetworkAdapters()
+	if err != nil {
+		return nil, err
+	}
+	for _, syntheticVirtualNetworkAdapter := range syntheticVirtualNetworkAdapters {
+		var vna *VirtualNetworkAdapter
+		if vna, err = NewVirtualNetworkAdapter(syntheticVirtualNetworkAdapter); err != nil {
+			return nil, err
+		}
+		virtualNetworkAdapters = append(virtualNetworkAdapters, vna)
+	}
+	return virtualNetworkAdapters, nil
+}
+
 func (vna *VirtualNetworkAdapter) GetVirtualMachine() (*VirtualMachine, error) {
 	cs, err := virtual_system.GetComputerSystem(vna.virtualNetworkAdapter)
 	if err != nil {
@@ -324,6 +344,32 @@ func (vna *VirtualNetworkAdapter) SetBandwidth(limitBandwidthMbps, reserveBandwi
 	vna.MinBandwidth = reserveBandwidthMbps
 
 	return
+}
+
+var (
+	ErrorNotConnected = errors.New("vna not connected to virtual switch")
+)
+
+func (vna *VirtualNetworkAdapter) GetVirtualSwitch() (*VirtualSwitch, error) {
+	// Get the virtual network adapter
+	syntheticAdapter := vna.virtualNetworkAdapter
+	ethernetPortAllocationSettingData, err := syntheticAdapter.GetEthernetPortAllocationSettingData()
+	if err != nil {
+		return nil, err
+	}
+	if ethernetPortAllocationSettingData == nil {
+		return nil, ErrorNotConnected
+	}
+	hostResource := ethernetPortAllocationSettingData.HostResource
+	if len(hostResource) == 0 {
+		return nil, ErrorNotConnected
+	}
+	vswPath := hostResource[0]
+	virtualEthernetSwitch := &networking.VirtualEthernetSwitch{}
+	if err = syntheticAdapter.GetService().GetObjectAsObject(vswPath, virtualEthernetSwitch); err != nil {
+		return nil, err
+	}
+	return NewVirtualSwitch(virtualEthernetSwitch)
 }
 
 // ConnectByName connects the virtual network adapter to a virtual switch
