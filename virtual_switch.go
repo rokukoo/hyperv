@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/networking_service"
-	hypervsdk "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
 )
 
@@ -345,29 +344,4 @@ func DeleteVirtualSwitchByName(name string) (err error) {
 		return
 	}
 	return
-}
-
-func ListAvailablePhysicalNetworkAdapters() ([]string, error) {
-	var nics []string
-	service, err := hypervsdk.NewLocalHyperVService()
-	if err != nil {
-		return nil, err
-	}
-	externalEthernetPorts, err := networking.ListEnabledExternalEthernetPort(service)
-	if err != nil {
-		return nil, err
-	}
-	for _, port := range externalEthernetPorts {
-		nics = append(nics, port.Name)
-	}
-
-	wiFiPorts, err := networking.ListEnabledWiFiPort(service)
-	if err != nil {
-		return nil, err
-	}
-	for _, port := range wiFiPorts {
-		nics = append(nics, port.Name)
-	}
-
-	return nics, nil
 }
