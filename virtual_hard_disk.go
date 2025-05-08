@@ -146,6 +146,13 @@ func (vhd *VirtualHardDisk) Create() (err error) {
 	return nil
 }
 
+// AttachToByName 根据虚拟机名称挂载虚拟硬盘
+// 
+// 参数:
+//   vmName: 虚拟机名称
+// 返回:
+//   bool: 是否挂载成功
+//   error: 错误
 func (vhd *VirtualHardDisk) AttachToByName(vmName string) (ok bool, err error) {
 	virtualMachine, err := FirstVirtualMachineByName(vmName)
 	if err != nil {
@@ -194,7 +201,13 @@ func (vhd *VirtualHardDisk) AttachAsSystemDisk(virtualMachine *VirtualMachine) (
 	return true, nil
 }
 
-// Resize will resize the virtual hard disk to the new size in GiB
+// Resize 调整虚拟硬盘大小
+// 
+// 参数:
+//   newSizeGiB: 新的虚拟硬盘大小 (GiB)
+// 返回:
+//   bool: 是否调整成功
+//   error: 错误
 func (vhd *VirtualHardDisk) Resize(newSizeGiB float64) (ok bool, err error) {
 	ims, err := storage.LocalImageManagementService()
 	if err != nil {
@@ -221,6 +234,13 @@ func (vhd *VirtualHardDisk) Resize(newSizeGiB float64) (ok bool, err error) {
 	return true, nil
 }
 
+// GetVirtualHardDiskByPath 根据路径获取虚拟硬盘
+// 
+// 参数:
+//   path: 虚拟硬盘路径
+// 返回:
+//   *VirtualHardDisk: 虚拟硬盘
+//   error: 错误
 func GetVirtualHardDiskByPath(path string) (*VirtualHardDisk, error) {
 	if !existsVirtualHardDiskByPath(path) {
 		return nil, errors.New("vhd not exists")
@@ -259,6 +279,14 @@ func GetVirtualHardDiskByPath(path string) (*VirtualHardDisk, error) {
 	}, nil
 }
 
+// CreateVirtualHardDisk 创建虚拟硬盘
+// 
+// 参数:
+//   path: 虚拟硬盘路径
+//   sizeGiB: 虚拟硬盘大小 (GiB)
+// 返回:
+//   *VirtualHardDisk: 虚拟硬盘
+//   error: 错误
 func CreateVirtualHardDisk(path string, sizeGiB float64) (vhd *VirtualHardDisk, err error) {
 	vhd = &VirtualHardDisk{
 		Path:        path,
@@ -270,6 +298,13 @@ func CreateVirtualHardDisk(path string, sizeGiB float64) (vhd *VirtualHardDisk, 
 	return vhd, nil
 }
 
+// DeleteVirtualHardDiskByPath 根据路径删除虚拟硬盘
+// 
+// 参数:
+//   path: 虚拟硬盘路径
+// 返回:
+//   bool: 是否删除成功
+//   error: 错误
 func DeleteVirtualHardDiskByPath(path string) (ok bool, err error) {
 	if !existsVirtualHardDiskByPath(path) {
 		return false, errors.New("vhd not exists")

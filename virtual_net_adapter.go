@@ -174,6 +174,12 @@ func (vm *VirtualMachine) FindVirtualNetworkAdapterByName(name string) ([]*Virtu
 	return virtualNetworkAdapters, nil
 }
 
+// AddVirtualNetworkAdapter 添加虚拟网络适配器
+// 
+// 参数:
+//   vna: 虚拟网络适配器
+// 返回:
+//   error: 错误
 func (vm *VirtualMachine) AddVirtualNetworkAdapter(vna *VirtualNetworkAdapter) (err error) {
 	var syntheticNetworkAdapter *network_adapter.VirtualNetworkAdapter
 	if syntheticNetworkAdapter, err = vm.computerSystem.NewSyntheticNetworkAdapter(vna.Name); err != nil {
@@ -223,6 +229,12 @@ func (vna *VirtualNetworkAdapter) Detach() error {
 	return nil
 }
 
+// RemoveVirtualNetworkAdapter 删除虚拟网络适配器
+// 
+// 参数:
+//   name: 虚拟网络适配器名称
+// 返回:
+//   error: 错误
 func (vm *VirtualMachine) RemoveVirtualNetworkAdapter(name string) (err error) {
 	networkAdapters, err := vm.FindVirtualNetworkAdapterByName(name)
 	if err != nil {
@@ -236,6 +248,12 @@ func (vm *VirtualMachine) RemoveVirtualNetworkAdapter(name string) (err error) {
 	return
 }
 
+// DisableBandwidthLimit 禁用虚拟网络适配器的带宽限制
+// 
+// 参数:
+//   vna: 虚拟网络适配器
+// 返回:
+//   error: 错误
 func (vna *VirtualNetworkAdapter) DisableBandwidthLimit() (err error) {
 	vsms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
@@ -261,9 +279,13 @@ func (vna *VirtualNetworkAdapter) DisableBandwidthLimit() (err error) {
 	return
 }
 
-// SetBandwidth sets the bandwidth of the virtual network adapter
-// limitBandwidthMbps: The maximum bandwidth in Mbps, -1 means unlimited
-// reserveBandwidthMbps: The minimum bandwidth in Mbps -1 means unlimited
+// SetBandwidth 设置虚拟网络适配器的带宽
+// 
+// 参数:	
+//   limitBandwidthMbps: 最大带宽 (Mbps), -1 表示无限制
+//   reserveBandwidthMbps: 最小带宽 (Mbps), -1 表示无限制
+// 返回:
+//   error: 错误
 func (vna *VirtualNetworkAdapter) SetBandwidth(limitBandwidthMbps, reserveBandwidthMbps float64) (err error) {
 	if limitBandwidthMbps < 0 {
 		limitBandwidthMbps = 0
@@ -373,7 +395,13 @@ func (vna *VirtualNetworkAdapter) GetVirtualSwitch() (*VirtualSwitch, error) {
 	return NewVirtualSwitch(virtualEthernetSwitch)
 }
 
-// ConnectByName connects the virtual network adapter to a virtual switch
+// ConnectByName 连接虚拟网络适配器到虚拟交换机
+// 
+// 参数:
+//   vswName: 虚拟交换机名称
+// 返回:
+//   bool: 是否连接成功
+//   error: 错误
 func (vna *VirtualNetworkAdapter) ConnectByName(vswName string) (bool, error) {
 	var (
 		err            error
@@ -401,7 +429,12 @@ func (vna *VirtualNetworkAdapter) ConnectByName(vswName string) (bool, error) {
 	return true, nil
 }
 
-// DisConnect disconnects the virtual network adapter from a virtual switch
+// DisConnect 断开虚拟网络适配器与虚拟交换机的连接
+// 
+// 参数:
+//   vna: 虚拟网络适配器
+// 返回:
+//   error: 错误
 func (vna *VirtualNetworkAdapter) DisConnect() (err error) {
 	if err = virtual_system.MustLocalVirtualSystemManagementService().DisConnectAdapterToVirtualSwitch(vna.Name); err != nil {
 		return
@@ -409,10 +442,15 @@ func (vna *VirtualNetworkAdapter) DisConnect() (err error) {
 	return
 }
 
-// ModifyConfiguration modifies the network adapter configuration
-// ipV4Address: The IPv4 address
-// subnetMask: The subnet mask
-// defaultGateway: The default gateway
+// ModifyConfiguration 修改虚拟网络适配器的配置
+// 
+// 参数:
+//   ipV4Address: IPv4 地址
+//   subnetMask: 子网掩码
+//   defaultGateway: 默认网关
+//   dnsServer: DNS 服务器
+// 返回:
+//   error: 错误
 func (vna *VirtualNetworkAdapter) ModifyConfiguration(
 	ipV4Address, subnetMask, defaultGateway, dnsServer []string,
 ) (err error) {
@@ -453,7 +491,13 @@ func (vna *VirtualNetworkAdapter) ModifyConfiguration(
 	return
 }
 
-// FindVirtualNetworkAdapterByName returns the virtual network adapter
+// FindVirtualNetworkAdapterByName 根据名称查找虚拟网络适配器
+// 
+// 参数:
+//   name: 虚拟网络适配器名称
+// 返回:
+//   virtualNetworkAdapters: 虚拟网络适配器列表
+//   error: 错误
 func FindVirtualNetworkAdapterByName(name string) (virtualNetworkAdapters []*VirtualNetworkAdapter, err error) {
 	vsms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
@@ -463,7 +507,13 @@ func FindVirtualNetworkAdapterByName(name string) (virtualNetworkAdapters []*Vir
 	return virtualNetworkAdapters, vsms.Session.FindObjects(wquery, virtualNetworkAdapters)
 }
 
-// FirstVirtualNetworkAdapterByName returns the first virtual network adapter
+// FirstVirtualNetworkAdapterByName 根据名称查找第一个虚拟网络适配器
+// 
+// 参数:
+//   name: 虚拟网络适配器名称
+// 返回:
+//   virtualNetworkAdapter: 虚拟网络适配器
+//   error: 错误
 func FirstVirtualNetworkAdapterByName(name string) (virtualNetworkAdapter *VirtualNetworkAdapter, err error) {
 	vsms, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
