@@ -1,14 +1,15 @@
 package hypervctl
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/disk"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
 	"github.com/rokukoo/hypervctl/pkg/wmiext"
-	"os"
-	"path/filepath"
 )
 
 type VirtualHardDiskType = int
@@ -165,7 +166,7 @@ func (vhd *VirtualHardDisk) AttachAsDataDisk(virtualMachine *VirtualMachine) (ok
 	if err != nil {
 		return false, err
 	}
-	if controllers, err = virtualMachine.computerSystem.GetSCSIControllers(); errors.Is(err, wmiext.NotFound) || (controllers == nil || len(controllers) == 0) {
+	if controllers, err = virtualMachine.computerSystem.GetSCSIControllers(); errors.Is(err, wmiext.NotFound) || len(controllers) == 0 {
 		if err = vmms.AddSCSIController(virtualMachine.computerSystem); err != nil {
 			return false, err
 		}

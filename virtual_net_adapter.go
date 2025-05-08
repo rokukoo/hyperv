@@ -2,6 +2,7 @@ package hypervctl
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
 	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
@@ -282,7 +283,7 @@ func (vna *VirtualNetworkAdapter) SetBandwidth(limitBandwidthMbps, reserveBandwi
 	}
 	// Get the virtual network adapter
 	syntheticAdapter := vna.virtualNetworkAdapter
-	ethernetPortAllocationSettingData, err := syntheticAdapter.GetEthernetPortAllocationSettingData()
+	ethernetPortAllocationSettingData, _ := syntheticAdapter.GetEthernetPortAllocationSettingData()
 	// If the virtual network adapter does not contain an ethernet port allocation setting data, create a new one
 	virtualMachine, err := vna.GetVirtualMachine()
 	if err != nil {
