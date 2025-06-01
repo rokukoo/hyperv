@@ -2,8 +2,9 @@ package win32
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 // https://learn.microsoft.com/zh-cn/windows/win32/fwp/wmi/netadaptercimprov/msft-netadapter

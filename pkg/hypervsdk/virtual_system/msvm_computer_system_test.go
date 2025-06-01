@@ -29,7 +29,7 @@ func TestVirtualSystemManagementService_ListComputerSystems(t *testing.T) {
 }
 
 func TestComputerSystem_State(t *testing.T) {
-	vmName := "hypervctl_test_hyperv_vm"
+	vmName := "hyperv_test_hyperv_vm"
 	service, err := LocalVirtualSystemManagementService()
 	if err != nil {
 		t.Fatalf("Error getting virtual system management service: %v", err)

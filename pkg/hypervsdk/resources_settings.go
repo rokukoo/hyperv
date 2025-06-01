@@ -3,8 +3,8 @@ package hypervsdk
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	hypervsdk "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	hypervsdk "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type ResourceSettings struct {

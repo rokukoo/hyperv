@@ -1,6 +1,6 @@
 package drive
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import "github.com/rokukoo/hyperv/pkg/wmiext"
 
 type SyntheticDiskDrive struct {
 	*VirtualDrive

@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/disk"
-	utils "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage/disk"
+	utils "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (

@@ -2,13 +2,13 @@ package virtual_system
 
 import (
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/processor"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/allocation"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/memory"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/network_adapter"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/processor"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage/allocation"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 	"time"
 )
 

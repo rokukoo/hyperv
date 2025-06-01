@@ -1,13 +1,14 @@
-package hypervctl
+package hyperv
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/processor"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"log"
 	"os"
+
+	"github.com/pkg/errors"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/memory"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/processor"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualMachineState = virtual_system.ComputerSystemState

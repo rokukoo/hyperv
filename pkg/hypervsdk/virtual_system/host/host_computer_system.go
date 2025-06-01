@@ -2,10 +2,11 @@ package host
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/switch_extension"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking/switch_extension"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type HostComputerSystem struct {

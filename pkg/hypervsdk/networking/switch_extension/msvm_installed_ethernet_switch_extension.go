@@ -1,9 +1,10 @@
 package switch_extension
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (

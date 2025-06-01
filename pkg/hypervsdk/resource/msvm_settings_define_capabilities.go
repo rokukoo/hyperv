@@ -1,6 +1,6 @@
 package resource
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import "github.com/rokukoo/hyperv/pkg/wmiext"
 
 const (
 	Msvm_SettingsDefineCapabilities = "Msvm_SettingsDefineCapabilities"

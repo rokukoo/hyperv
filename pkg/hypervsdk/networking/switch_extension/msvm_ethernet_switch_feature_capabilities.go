@@ -1,6 +1,6 @@
 package switch_extension
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import "github.com/rokukoo/hyperv/pkg/wmiext"
 
 // EthernetSwitchFeatureCapabilities 代表 Hyper-V 以太网交换机功能能力
 type EthernetSwitchFeatureCapabilities struct {

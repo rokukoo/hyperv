@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
 )
 
 type IDEControllerSettings struct {

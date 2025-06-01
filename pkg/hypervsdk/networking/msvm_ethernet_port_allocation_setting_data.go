@@ -1,8 +1,8 @@
 package networking
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/switch_extension"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking/switch_extension"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (

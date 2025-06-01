@@ -1,4 +1,4 @@
-module github.com/rokukoo/hypervctl
+module github.com/rokukoo/hyperv
 
 go 1.23.0
 

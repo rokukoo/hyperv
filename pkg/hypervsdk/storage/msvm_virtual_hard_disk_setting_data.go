@@ -2,8 +2,8 @@ package storage
 
 import (
 	"encoding/xml"
-	utils "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	utils "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 	"strconv"
 	"time"
 )

@@ -1,10 +1,11 @@
-package hypervctl
+package hyperv
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
+	"github.com/stretchr/testify/assert"
 )
 
 var (

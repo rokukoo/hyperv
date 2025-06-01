@@ -1,13 +1,14 @@
-package hypervctl
+package hyperv
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/network_adapter"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system/host"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/network_adapter"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system/host"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualNetworkAdapter struct {

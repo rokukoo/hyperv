@@ -2,14 +2,15 @@ package networking_service
 
 import (
 	"fmt"
-	"github.com/duke-git/lancet/v2/slice"
-	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	utils "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system/host"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"strings"
 	"time"
+
+	"github.com/duke-git/lancet/v2/slice"
+	"github.com/pkg/errors"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	utils "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system/host"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (

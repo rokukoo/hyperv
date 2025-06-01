@@ -1,6 +1,6 @@
 package network_adapter
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import "github.com/rokukoo/hyperv/pkg/wmiext"
 
 const (
 	Msvm_GuestNetworkAdapterConfiguration = "Msvm_GuestNetworkAdapterConfiguration"

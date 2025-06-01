@@ -1,9 +1,9 @@
-package hypervctl
+package hyperv
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/memory"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/processor"
-	virtualsystem "github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/memory"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/processor"
+	virtualsystem "github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system"
 )
 
 type VirtualMachineBuilder struct {

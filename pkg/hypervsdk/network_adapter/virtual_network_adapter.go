@@ -2,8 +2,8 @@ package network_adapter
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualNetworkAdapter struct {

@@ -3,7 +3,7 @@ package resource
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 	"time"
 )
 

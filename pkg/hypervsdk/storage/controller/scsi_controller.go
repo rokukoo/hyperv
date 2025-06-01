@@ -2,8 +2,8 @@ package controller
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/drive"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage/drive"
 )
 
 type SCSIControllerSettings struct {

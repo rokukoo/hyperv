@@ -1,12 +1,12 @@
-package hypervctl
+package hyperv
 
 import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking/networking_service"
-	hypervsdk "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking/networking_service"
+	hypervsdk "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualSwitchType = int

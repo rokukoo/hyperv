@@ -2,9 +2,9 @@ package disk
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/allocation"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage/allocation"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualHardDisk struct {

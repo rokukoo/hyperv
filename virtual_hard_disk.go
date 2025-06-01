@@ -1,14 +1,15 @@
-package hypervctl
+package hyperv
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/storage/disk"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/virtual_system"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/storage/disk"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/virtual_system"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualHardDiskType = int

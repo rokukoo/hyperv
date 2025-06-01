@@ -1,6 +1,6 @@
-package networking
+	package networking
 
-import "github.com/rokukoo/hypervctl/pkg/wmiext"
+import "github.com/rokukoo/hyperv/pkg/wmiext"
 
 // https://learn.microsoft.com/zh-cn/windows/win32/hyperv_v2/msvm-syntheticethernetportsettingdata
 

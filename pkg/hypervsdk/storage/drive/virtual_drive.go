@@ -1,8 +1,8 @@
 package drive
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/resource"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/resource"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 type VirtualDrive struct {

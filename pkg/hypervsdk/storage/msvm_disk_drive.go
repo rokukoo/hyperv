@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 	"time"
 )
 

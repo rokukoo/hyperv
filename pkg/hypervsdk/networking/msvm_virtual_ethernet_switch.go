@@ -2,8 +2,9 @@ package networking
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
 	"time"
+
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (

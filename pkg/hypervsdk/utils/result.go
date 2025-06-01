@@ -2,7 +2,7 @@ package hypervsdk
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 	"strings"
 )
 

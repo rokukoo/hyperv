@@ -2,8 +2,9 @@ package processor
 
 import (
 	"fmt"
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk"
-	"github.com/rokukoo/hypervctl/pkg/wmiext"
+
+	"github.com/rokukoo/hyperv/pkg/hypervsdk"
+	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
 const (
