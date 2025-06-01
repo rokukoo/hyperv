@@ -1,8 +1,8 @@
-package hypervctl
+package hyperv
 
 import (
-	"github.com/rokukoo/hypervctl/pkg/hypervsdk/networking"
-	utils "github.com/rokukoo/hypervctl/pkg/hypervsdk/utils"
+	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
+	utils "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
 )
 
 // ListAvailablePhysicalNetworkAdapters 列出所有可用的物理网络适配器
