@@ -91,6 +91,9 @@ func (builder *VirtualMachineBuilder) Build() (*VirtualMachine, error) {
 	builder.svc = vmms
 	// defer vmms.Close()
 	cs, err = vmms.DefineSystem(builder.systemSettingsData, builder.processorSettings, builder.memorySettingData)
+	if err != nil {
+		return nil, err
+	}
 
 	// 提前创建SCSI控制器, 以支持热插拔硬盘
 	if err = vmms.AddSCSIController(cs); err != nil {

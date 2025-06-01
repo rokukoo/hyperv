@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking"
 	"github.com/rokukoo/hyperv/pkg/hypervsdk/networking/networking_service"
-	hypervsdk "github.com/rokukoo/hyperv/pkg/hypervsdk/utils"
 	"github.com/rokukoo/hyperv/pkg/wmiext"
 )
 
@@ -202,6 +201,18 @@ func (vsw *VirtualSwitch) ChangeType(switchType VirtualSwitchType, adapter *stri
 	}
 }
 
+// CreateVirtualSwitch 创建虚拟交换机
+//
+// 参数:
+//
+//	name: 虚拟交换机名称
+//	switchType: 虚拟交换机类型 "External" | "Internal" | "Private" | "Bridge"
+//	adapter: 物理适配器名称, 仅在 External/Bridge 类型下需要
+//
+// 返回:
+//
+//	*VirtualSwitch: 虚拟交换机
+//	error: 错误
 func CreateVirtualSwitch(name string, switchType VirtualSwitchType, adapter *string) (*VirtualSwitch, error) {
 	var (
 		vsw = &networking.VirtualEthernetSwitch{}
@@ -289,7 +300,16 @@ func CreateExternalVirtualSwitch(name, networkInterfaceDescription string, inter
 	return vSwitch, nil
 }
 
-// FirstVirtualSwitchByName returns the first virtual switch by name
+// FirstVirtualSwitchByName 根据名称获取第一个虚拟交换机
+//
+// 参数:
+//
+//	name: 虚拟交换机名称
+//
+// 返回:
+//
+//	*VirtualSwitch: 虚拟交换机
+//	error: 错误
 func FirstVirtualSwitchByName(name string) (*VirtualSwitch, error) {
 	var (
 		vsms *networking_service.VirtualEthernetSwitchManagementService
@@ -313,6 +333,15 @@ func MustFirstVirtualSwitchByName(name string) *VirtualSwitch {
 	return vsw
 }
 
+// GetVirtualSwitchTypeByName 根据名称获取虚拟交换机类型
+//
+// 参数:
+//
+//	name: 虚拟交换机名称
+//
+// 返回:
+//
+//	VirtualSwitchType: 虚拟交换机类型
 func GetVirtualSwitchTypeByName(name string) (VirtualSwitchType, error) {
 	vsw, err := FirstVirtualSwitchByName(name)
 	if err != nil {
@@ -321,6 +350,17 @@ func GetVirtualSwitchTypeByName(name string) (VirtualSwitchType, error) {
 	return vsw.Type, nil
 }
 
+// ChangeVirtualSwitchTypeByName 根据名称修改虚拟交换机类型
+//
+// 参数:
+//
+//	name: 虚拟交换机名称
+//	switchType: 虚拟交换机类型 "External" | "Internal" | "Private" | "Bridge"
+//	adapter: 物理适配器名称, 仅在 External/Bridge 类型下需要
+//
+// 返回:
+//
+//	error: 错误
 func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, adapter *string) error {
 	vsw, err := FirstVirtualSwitchByName(name)
 	if err != nil {
@@ -329,7 +369,15 @@ func ChangeVirtualSwitchTypeByName(name string, switchType VirtualSwitchType, ad
 	return vsw.ChangeType(switchType, adapter)
 }
 
-// DeleteVirtualSwitchByName removes a virtual switch by name
+// DeleteVirtualSwitchByName 根据名称删除虚拟交换机
+//
+// 参数:
+//
+//	name: 虚拟交换机名称
+//
+// 返回:
+//
+//	error: 错误
 func DeleteVirtualSwitchByName(name string) (err error) {
 	var (
 		vsms *networking_service.VirtualEthernetSwitchManagementService
@@ -345,29 +393,4 @@ func DeleteVirtualSwitchByName(name string) (err error) {
 		return
 	}
 	return
-}
-
-func ListAvailablePhysicalNetworkAdapters() ([]string, error) {
-	var nics []string
-	service, err := hypervsdk.NewLocalHyperVService()
-	if err != nil {
-		return nil, err
-	}
-	externalEthernetPorts, err := networking.ListEnabledExternalEthernetPort(service)
-	if err != nil {
-		return nil, err
-	}
-	for _, port := range externalEthernetPorts {
-		nics = append(nics, port.Name)
-	}
-
-	wiFiPorts, err := networking.ListEnabledWiFiPort(service)
-	if err != nil {
-		return nil, err
-	}
-	for _, port := range wiFiPorts {
-		nics = append(nics, port.Name)
-	}
-
-	return nics, nil
 }

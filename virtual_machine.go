@@ -29,26 +29,37 @@ type VirtualMachine struct {
 	computerSystem *virtual_system.ComputerSystem
 }
 
+// Start 启动虚拟机
 func (vm *VirtualMachine) Start() error {
 	return vm.computerSystem.Start()
 }
 
+// Stop 停止虚拟机
 func (vm *VirtualMachine) Stop(force bool) error {
 	return vm.computerSystem.Stop(force)
 }
 
+// ForceStop 强制停止虚拟机
 func (vm *VirtualMachine) ForceStop() error {
 	return vm.computerSystem.ForceStop()
 }
 
+// Shutdown 正常关闭虚拟机
+func (vm *VirtualMachine) Shutdown() error {
+	return vm.computerSystem.Stop(false)
+}
+
+// Reboot 重启虚拟机
 func (vm *VirtualMachine) Reboot(force bool) error {
 	return vm.computerSystem.Reboot(force)
 }
 
+// ForceReboot 强制重启虚拟机
 func (vm *VirtualMachine) ForceReboot() error {
 	return vm.computerSystem.ForceReboot()
 }
 
+// Resume 恢复虚拟机
 func (vm *VirtualMachine) Resume() error {
 	return vm.computerSystem.Resume()
 }
@@ -241,6 +252,12 @@ func (vm *VirtualMachine) Modify(options ...Option) (ok bool, err error) {
 }
 
 // FindVirtualMachineByName 根据虚拟机名称获取虚拟机
+// 
+// 参数:
+//   vmName: 虚拟机名称
+// 返回:
+//   []*VirtualMachine: 虚拟机列表
+//   error: 错误
 func FindVirtualMachineByName(vmName string) ([]*VirtualMachine, error) {
 	service, err := virtual_system.LocalVirtualSystemManagementService()
 	if err != nil {
@@ -348,6 +365,7 @@ func DeleteVirtualMachineByName(name string) (ok bool, err error) {
 	return DestroyVirtualMachineByName(name, true)
 }
 
+// ModifySpec 修改虚拟机规格
 func (vm *VirtualMachine) ModifySpec(cpuCoreCount, memorySize int) (ok bool, err error) {
 	var options []Option
 	if cpuCoreCount > 0 {
